@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"errors"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-http-utils/headers"
 	"net/http"
-	"strings"
 )
 
 type Handler struct {
@@ -15,28 +15,28 @@ func NewHandler(s *service.Service) *Handler {
 	return &Handler{s}
 }
 
-func (h *Handler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	metricType, metricName, metricValue, err := parseUrl(req.URL.Path)
+func (h *Handler) InitRoutes() *chi.Mux {
+	router := chi.NewRouter()
 
-	if err != nil || strings.TrimSpace(metricName) == `` {
+	router.Post("/update/{metricType}/{metricName}/{metricValue}", h.HandleUpdate)
+
+	return router
+}
+
+func (h *Handler) HandleUpdate(res http.ResponseWriter, req *http.Request) {
+	metricType, metricName, metricValue := chi.URLParam(req, "metricType"),
+		chi.URLParam(req, "metricName"), chi.URLParam(req, "metricValue")
+	res.Header().Set(headers.ContentType, "text/plain")
+	if metricName == "" {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
-	err = h.service.ValidateAndSave(metricType, metricName, metricValue)
+
+	err := h.service.ValidateAndSave(metricType, metricName, metricValue)
 
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 	} else {
 		res.WriteHeader(http.StatusOK)
 	}
-}
-
-func parseUrl(path string) (string, string, string, error) {
-	parts := strings.Split(path[1:], `/`)
-
-	if len(parts) != 4 {
-		return ``, ``, ``, errors.New("invalid url")
-	}
-
-	return parts[1], parts[2], parts[3], nil
 }

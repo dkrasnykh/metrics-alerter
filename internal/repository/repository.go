@@ -1,6 +1,9 @@
 package repository
 
 type Storage interface {
-	Get(metricType, metricName string) (string, bool)
-	Update(metricType, metricName, value string)
+	Create(metricType, metricName, value string) error
+	Get(metricType, metricName string) (string, error)
+	GetAll() ([][]string, error)
+	Update(metricType, metricName, value string) error
+	Delete(metricType, metricName string) error
 }

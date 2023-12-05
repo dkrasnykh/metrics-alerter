@@ -5,12 +5,6 @@ import (
 	"fmt"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage"
 	"strconv"
-	"strings"
-)
-
-const (
-	Gauge   string = "gauge"
-	Counter string = "counter"
 )
 
 type Service struct {
@@ -22,30 +16,26 @@ func NewService(s *storage.MemStorage) *Service {
 }
 
 func (s *Service) ValidateAndSave(metricType, metricName, metricValue string) error {
-	if strings.TrimSpace(metricName) == `` {
-		return errors.New(``)
-	}
 	switch metricType {
-	case Gauge:
+	case storage.Gauge:
 		err := s.validateGaudeValue(metricValue)
 		if err != nil {
 			return errors.New("incorrect value for gauge type metric")
 		}
-		s.saveGaudeValue(metricName, metricValue)
-	case Counter:
+		return s.saveGaudeValue(metricName, metricValue)
+	case storage.Counter:
 		err := s.validateCounterValue(metricValue)
 		if err != nil {
 			return errors.New("incorrect value for counter type metric")
 		}
-		s.saveCounterValue(metricName, metricValue)
+		return s.saveCounterValue(metricName, metricValue)
 	default:
 		return errors.New("unknown metric type")
 	}
-	return nil
 }
 
-func (s *Service) saveGaudeValue(metricName, metricValue string) {
-	s.r.Update(Gauge, metricName, metricValue)
+func (s *Service) saveGaudeValue(metricName, metricValue string) error {
+	return s.r.Update(storage.Gauge, metricName, metricValue)
 }
 
 func (s *Service) validateGaudeValue(metricValue string) error {
@@ -58,12 +48,13 @@ func (s *Service) validateCounterValue(metricValue string) error {
 	return err
 }
 
-func (s *Service) saveCounterValue(metricName, metricValue string) {
+func (s *Service) saveCounterValue(metricName, metricValue string) error {
 	var newValue = metricValue
-	if value, ok := s.r.Get(Counter, metricName); ok {
+	value, err := s.r.Get(storage.Counter, metricName)
+	if err == nil {
 		currentValue, _ := strconv.ParseInt(value, 10, 64)
 		v, _ := strconv.ParseInt(metricValue, 10, 64)
 		newValue = fmt.Sprintf("%d", currentValue+v)
 	}
-	s.r.Update(Counter, metricName, newValue)
+	return s.r.Update(storage.Counter, metricName, newValue)
 }
