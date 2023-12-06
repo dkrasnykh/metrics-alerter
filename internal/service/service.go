@@ -58,3 +58,11 @@ func (s *Service) saveCounterValue(metricName, metricValue string) error {
 	}
 	return s.r.Update(storage.Counter, metricName, newValue)
 }
+
+func (s *Service) GetMetricValue(metricType, metricName string) (string, error) {
+	return s.r.Get(metricType, metricName)
+}
+
+func (s *Service) GetAll() (map[string][][2]string, error) {
+	return s.r.GetAll()
+}

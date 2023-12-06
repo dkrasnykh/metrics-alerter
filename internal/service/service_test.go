@@ -41,7 +41,6 @@ func TestValidateGaudeValue(t *testing.T) {
 	err = s.validateGaudeValue("test")
 	require.Error(t, err)
 
-	//1.8*10^308
 	err = s.validateGaudeValue("9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999")
 	require.Error(t, err)
 }
@@ -88,4 +87,37 @@ func TestSaveCounterValue(t *testing.T) {
 	require.NoError(t, err)
 	value, err = r.Get(storage.Counter, "test")
 	assert.Equal(t, "138", value)
+}
+
+func TestGetMetricValue(t *testing.T) {
+	r := storage.NewStorage()
+	s := NewService(r)
+
+	_, err := s.GetMetricValue(storage.Counter, "test")
+	require.Error(t, err)
+
+	err = s.saveCounterValue("test", "123")
+	require.NoError(t, err)
+	value, err := s.GetMetricValue(storage.Counter, "test")
+	require.NoError(t, err)
+	assert.Equal(t, "123", value)
+}
+
+func TestGetAll(t *testing.T) {
+	r := storage.NewStorage()
+	s := NewService(r)
+
+	value, err := s.GetAll()
+	require.NoError(t, err)
+	assert.Equal(t, 0, len(value))
+
+	err = s.saveCounterValue("testCounter", "123")
+	require.NoError(t, err)
+	err = s.saveGaudeValue("testGuade", "123")
+	require.NoError(t, err)
+	value, err = s.GetAll()
+	require.NoError(t, err)
+	assert.Equal(t, 2, len(value))
+	assert.Equal(t, 1, len(value[storage.Counter]))
+	assert.Equal(t, 1, len(value[storage.Gauge]))
 }

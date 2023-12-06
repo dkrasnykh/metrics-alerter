@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 )
@@ -11,18 +10,18 @@ const (
 	Counter string = "counter"
 )
 
-type KeyStorage struct {
-	MetricType string
-	MetricName string
+type Key struct {
+	Type string
+	Name string
 }
 
 type MemStorage struct {
-	storage map[KeyStorage]string
+	storage map[Key]string
 	mx      sync.RWMutex
 }
 
 func NewStorage() *MemStorage {
-	return &MemStorage{storage: make(map[KeyStorage]string),
+	return &MemStorage{storage: make(map[Key]string),
 		mx: sync.RWMutex{},
 	}
 }
@@ -31,7 +30,7 @@ func (s *MemStorage) Create(metricType, metricName, value string) error {
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
-	key := KeyStorage{MetricType: metricType, MetricName: metricName}
+	key := Key{Type: metricType, Name: metricName}
 	s.storage[key] = value
 
 	return nil
@@ -41,21 +40,24 @@ func (s *MemStorage) Get(metricType, metricName string) (string, error) {
 	s.mx.RLock()
 	defer s.mx.RUnlock()
 
-	key := KeyStorage{MetricType: metricType, MetricName: metricName}
+	key := Key{Type: metricType, Name: metricName}
 	value, ok := s.storage[key]
 	if !ok {
-		return "", errors.New(fmt.Sprintf("value by type: %s and value: %s not found", metricType, metricName))
+		return "", fmt.Errorf("value by type: %s and value: %s not found", metricType, metricName)
 	}
 	return value, nil
 }
 
-func (s *MemStorage) GetAll() ([][]string, error) {
+func (s *MemStorage) GetAll() (map[string][][2]string, error) {
 	s.mx.RLock()
 	defer s.mx.RUnlock()
 
-	values := make([][]string, 0, len(s.storage))
+	values := make(map[string][][2]string)
 	for k, v := range s.storage {
-		values = append(values, []string{k.MetricType, k.MetricName, v})
+		if _, ok := values[k.Type]; !ok {
+			values[k.Type] = make([][2]string, 0)
+		}
+		values[k.Type] = append(values[k.Type], [...]string{k.Name, v})
 	}
 	return values, nil
 }
@@ -71,7 +73,7 @@ func (s *MemStorage) Delete(metricType, metricName string) error {
 	}
 	s.mx.Lock()
 	defer s.mx.Unlock()
-	key := KeyStorage{MetricType: metricType, MetricName: metricName}
+	key := Key{Type: metricType, Name: metricName}
 	delete(s.storage, key)
 	return nil
 }

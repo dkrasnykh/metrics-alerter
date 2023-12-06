@@ -82,3 +82,61 @@ func TestHandleUpdate(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleGet(t *testing.T) {
+	r := storage.NewStorage()
+	v := service.NewService(r)
+	h := NewHandler(v)
+	testServ := httptest.NewServer(h.InitRoutes())
+	defer testServ.Close()
+
+	err := r.Create(storage.Counter, "testCounter", "123")
+	require.NoError(t, err)
+	err = r.Create(storage.Gauge, "testGuade", "123.0")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		request  string
+		code     int
+		response string
+	}{
+		{
+			name:     "success getting counter value",
+			request:  "/value/counter/testCounter",
+			code:     http.StatusOK,
+			response: "123",
+		},
+		{
+			name:     "success getting gauge value",
+			request:  "/value/gauge/testGuade",
+			code:     http.StatusOK,
+			response: "123.0",
+		},
+		{
+			name:     "unknown metric name",
+			request:  "/value/gauge/unknown",
+			code:     http.StatusNotFound,
+			response: "",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			url := fmt.Sprintf("%s%s", testServ.URL, test.request)
+			req, err := http.NewRequest(http.MethodGet, url, nil)
+			require.NoError(t, err)
+
+			resp, err := testServ.Client().Do(req)
+			require.NoError(t, err)
+
+			respBody, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			err = resp.Body.Close()
+			require.NoError(t, err)
+
+			assert.Equal(t, test.code, resp.StatusCode)
+			assert.Equal(t, test.response, string(respBody))
+		})
+	}
+}

@@ -27,11 +27,16 @@ func TestGet(t *testing.T) {
 
 func TestGetAll(t *testing.T) {
 	s := NewStorage()
-	s.Create(Counter, "name1", "1")
-	s.Create(Gauge, "name2", "2")
+	err := s.Create(Counter, "name1", "1")
+	require.NoError(t, err)
+	err = s.Create(Gauge, "name2", "2")
+	require.NoError(t, err)
+
 	values, err := s.GetAll()
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(values))
+	assert.Equal(t, 1, len(values[Counter]))
+	assert.Equal(t, 1, len(values[Gauge]))
 }
 
 func TestUpdate(t *testing.T) {
