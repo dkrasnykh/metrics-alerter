@@ -51,11 +51,13 @@ func TestSaveGaudeValue(t *testing.T) {
 	err := s.saveGaudeValue("test", "123.0")
 	require.NoError(t, err)
 	value, err := r.Get(storage.Gauge, "test")
+	require.NoError(t, err)
 	assert.Equal(t, "123.0", value)
 
 	err = s.saveGaudeValue("test", "155.0")
 	require.NoError(t, err)
 	value, err = r.Get(storage.Gauge, "test")
+	require.NoError(t, err)
 	assert.Equal(t, "155.0", value)
 }
 
@@ -81,11 +83,13 @@ func TestSaveCounterValue(t *testing.T) {
 	err := s.saveCounterValue("test", "123")
 	require.NoError(t, err)
 	value, err := r.Get(storage.Counter, "test")
+	require.NoError(t, err)
 	assert.Equal(t, "123", value)
 
 	err = s.saveCounterValue("test", "15")
 	require.NoError(t, err)
 	value, err = r.Get(storage.Counter, "test")
+	require.NoError(t, err)
 	assert.Equal(t, "138", value)
 }
 

@@ -15,18 +15,16 @@ import (
 type Agent struct {
 	client        *resty.Client
 	serverAddress string
-	serverPort    string
 	pollTicker    *time.Ticker
 	reportTicker  *time.Ticker
 	pollCount     int
 	memStats      *runtime.MemStats
 }
 
-func NewAgent(serverAddress, serverPort string, pollTicker, reportTicker *time.Ticker) *Agent {
+func NewAgent(serverAddress string, pollTicker, reportTicker *time.Ticker) *Agent {
 	return &Agent{
 		client:        resty.New(),
 		serverAddress: serverAddress,
-		serverPort:    serverPort,
 		pollTicker:    pollTicker,
 		reportTicker:  reportTicker,
 		memStats:      &runtime.MemStats{},
@@ -110,7 +108,7 @@ func (a *Agent) reportMemStats() {
 }
 
 func (a *Agent) sendRequest(metricType, metricName, metricValue string) {
-	url := fmt.Sprintf("http://%s:%s/update/%s/%s/%s", a.serverAddress, a.serverPort, metricType, metricName, metricValue)
+	url := fmt.Sprintf("http://%s/update/%s/%s/%s", a.serverAddress, metricType, metricName, metricValue)
 	resp, err := a.client.R().SetHeader(headers.ContentType, "text/plain").Post(url)
 	if err != nil {
 		log.Fatalf("failed to handle response from server:  %s\n%s", url, err.Error())

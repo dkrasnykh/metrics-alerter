@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"github.com/dkrasnykh/metrics-alerter/internal/handler"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage"
@@ -16,10 +15,9 @@ type Server struct {
 	router  *chi.Mux
 }
 
-func NewServer(address, port string) *Server {
+func NewServer(address string) *Server {
 	return &Server{
 		address: address,
-		port:    port,
 		router:  chi.NewRouter(),
 	}
 }
@@ -29,7 +27,7 @@ func (s *Server) Run() {
 	v := service.NewService(r)
 	h := handler.NewHandler(v)
 
-	err := http.ListenAndServe(fmt.Sprintf("%s:%s", s.address, s.port), h.InitRoutes())
+	err := http.ListenAndServe(s.address, h.InitRoutes())
 
 	if err != nil {
 		log.Fatal(err)

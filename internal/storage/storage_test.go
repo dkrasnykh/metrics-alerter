@@ -21,7 +21,7 @@ func TestGet(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "123", value)
 
-	value, err = s.Get(Counter, "name2")
+	_, err = s.Get(Counter, "name2")
 	require.Error(t, err)
 }
 
@@ -69,6 +69,6 @@ func TestDelete(t *testing.T) {
 	err = s.Delete(Gauge, "name1")
 	require.NoError(t, err)
 
-	value, err = s.Get(Gauge, "name1")
+	_, err = s.Get(Gauge, "name1")
 	require.Error(t, err)
 }
