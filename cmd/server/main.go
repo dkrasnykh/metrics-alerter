@@ -7,8 +7,8 @@ import (
 	"log"
 )
 
-type config struct {
-	address string `env:"ADDRESS"`
+type Config struct {
+	Address string `env:"ADDRESS"`
 }
 
 func main() {
@@ -16,14 +16,16 @@ func main() {
 	flag.StringVar(&runAddr, "a", ":8080", "address and port to run server")
 	flag.Parse()
 
-	var c config
+	var c Config
 	err := env.Parse(&c)
 	if err != nil {
 		log.Fatal("error retrieving environment variables")
 	}
-	if c.address != "" {
-		runAddr = c.address
+	
+	if c.Address != "" {
+		runAddr = c.Address
 	}
+
 	s := server.NewServer(runAddr)
 	s.Run()
 }

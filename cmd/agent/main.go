@@ -8,10 +8,10 @@ import (
 	"time"
 )
 
-type config struct {
-	address        string `env:"ADDRESS"`
-	reportInterval int    `env:"REPORT_INTERVAL"`
-	pollInterval   int    `env:"POLL_INTERVAL"`
+type Config struct {
+	Address        string `env:"ADDRESS"`
+	ReportInterval int    `env:"REPORT_INTERVAL"`
+	PollInterval   int    `env:"POLL_INTERVAL"`
 }
 
 func main() {
@@ -23,19 +23,20 @@ func main() {
 	flag.IntVar(&pollInterval, "p", 2, "frequency of collecting metrics from runtime package")
 	flag.Parse()
 
-	var c config
+	var c Config
 	err := env.Parse(&c)
 	if err != nil {
 		log.Fatal("error retrieving environment variables")
 	}
-	if c.address != "" {
-		runAddr = c.address
+
+	if c.Address != "" {
+		runAddr = c.Address
 	}
-	if c.reportInterval != 0 {
-		reportInterval = c.reportInterval
+	if c.ReportInterval != 0 {
+		reportInterval = c.ReportInterval
 	}
-	if c.pollInterval != 0 {
-		pollInterval = c.pollInterval
+	if c.PollInterval != 0 {
+		pollInterval = c.PollInterval
 	}
 
 	a := agent.NewAgent(runAddr,
