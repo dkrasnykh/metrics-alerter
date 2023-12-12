@@ -1,20 +1,35 @@
 package handler
 
 import (
-	"github.com/dkrasnykh/metrics-alerter/internal/service"
+	"html/template"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-http-utils/headers"
-	"html/template"
-	"log"
-	"net/http"
+
+	"github.com/dkrasnykh/metrics-alerter/internal/models"
+	"github.com/dkrasnykh/metrics-alerter/internal/service"
 )
+
+const (
+	Tpl = `
+	<!DOCTYPE html>
+	<html>
+		<body>
+			{{range .Counters}}<div>{{ .Name }} {{ .Value }}</div>{{end}}
+			{{range .Gauges}}<div>{{ .Name }} {{ .Value }}</div>{{end}}
+		</body>
+	</html>`
+)
+
+var T *template.Template
 
 type Handler struct {
 	service *service.Service
 }
 
 func NewHandler(s *service.Service) *Handler {
-	return &Handler{s}
+	return &Handler{service: s}
 }
 
 func (h *Handler) InitRoutes() *chi.Mux {
@@ -39,8 +54,6 @@ func (h *Handler) HandleUpdate(res http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
-	} else {
-		res.WriteHeader(http.StatusOK)
 	}
 }
 
@@ -60,53 +73,23 @@ func (h *Handler) HandleGet(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) HandleGetAll(res http.ResponseWriter, req *http.Request) {
-	const tpl = `
-	<!DOCTYPE html>
-	<html>
-		<body>
-			{{range .Items}}
-				<h3>{{.Type}}</h3>
-				<body>
-					{{range .Values}}<div>{{ .Name }} {{ .Value }}</div>{{end}}
-				</body>
-			{{end}}
-		</body>
-	</html>`
-
-	type Value struct {
-		Name  string
-		Value string
-	}
-
 	type Item struct {
-		Type   string
-		Values []Value
+		Counters []models.Counter
+		Gauges   []models.Gauge
 	}
-
-	type Items struct {
-		Items []Item
+	counters, err := h.service.GetAllCounter()
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
 	}
-
-	check := func(err error) {
-		if err != nil {
-			log.Fatal(err)
-		}
+	gauges, err := h.service.GetAllGauge()
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
 	}
-
-	t, err := template.New("webpage").Parse(tpl)
-	check(err)
-
-	values, err := h.service.GetAll()
-	check(err)
-
-	items := make([]Item, 0, len(values))
-	for mtype, mname := range values {
-		item := Item{Type: mtype, Values: make([]Value, 0)}
-		for _, v := range mname {
-			item.Values = append(item.Values, Value{Name: v[0], Value: v[1]})
-		}
-		items = append(items, item)
+	err = T.Execute(res, Item{Counters: counters, Gauges: gauges})
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
 	}
-	err = t.Execute(res, Items{Items: items})
-	check(err)
 }

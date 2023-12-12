@@ -1,12 +1,14 @@
 package server
 
 import (
+	"html/template"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
 	"github.com/dkrasnykh/metrics-alerter/internal/handler"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage"
-	"github.com/go-chi/chi/v5"
-	"log"
-	"net/http"
 )
 
 type Server struct {
@@ -22,14 +24,20 @@ func NewServer(address string) *Server {
 	}
 }
 
-func (s *Server) Run() {
-	r := storage.NewStorage()
-	v := service.NewService(r)
+func (s *Server) Run() error {
+	cs := storage.NewCounterStorage()
+	gs := storage.NewGaugeStorage()
+	v := service.NewService(cs, gs)
+	var err error
+	handler.T, err = template.New("webpage").Parse(handler.Tpl)
+	if err != nil {
+		return err
+	}
 	h := handler.NewHandler(v)
 
-	err := http.ListenAndServe(s.address, h.InitRoutes())
-
+	err = http.ListenAndServe(s.address, h.InitRoutes())
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }

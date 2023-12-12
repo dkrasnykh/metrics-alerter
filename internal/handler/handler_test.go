@@ -2,20 +2,23 @@ package handler
 
 import (
 	"fmt"
-	"github.com/dkrasnykh/metrics-alerter/internal/service"
-	"github.com/dkrasnykh/metrics-alerter/internal/storage"
-	"github.com/go-http-utils/headers"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/go-http-utils/headers"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/dkrasnykh/metrics-alerter/internal/service"
+	"github.com/dkrasnykh/metrics-alerter/internal/storage"
 )
 
 func TestHandleUpdate(t *testing.T) {
-	r := storage.NewStorage()
-	v := service.NewService(r)
+	cr := storage.NewCounterStorage()
+	gr := storage.NewGaugeStorage()
+	v := service.NewService(cr, gr)
 	h := NewHandler(v)
 	testServ := httptest.NewServer(h.InitRoutes())
 	defer testServ.Close()
@@ -84,15 +87,16 @@ func TestHandleUpdate(t *testing.T) {
 }
 
 func TestHandleGet(t *testing.T) {
-	r := storage.NewStorage()
-	v := service.NewService(r)
+	cr := storage.NewCounterStorage()
+	gr := storage.NewGaugeStorage()
+	v := service.NewService(cr, gr)
 	h := NewHandler(v)
 	testServ := httptest.NewServer(h.InitRoutes())
 	defer testServ.Close()
 
-	err := r.Create(storage.Counter, "testCounter", "123")
+	err := cr.Create("testCounter", int64(123))
 	require.NoError(t, err)
-	err = r.Create(storage.Gauge, "testGuade", "123.0")
+	err = gr.Create("testGuade", float64(123))
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -111,7 +115,7 @@ func TestHandleGet(t *testing.T) {
 			name:     "success getting gauge value",
 			request:  "/value/gauge/testGuade",
 			code:     http.StatusOK,
-			response: "123.0",
+			response: "123",
 		},
 		{
 			name:     "unknown metric name",

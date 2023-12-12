@@ -2,38 +2,48 @@ package agent
 
 import (
 	"fmt"
-	"github.com/dkrasnykh/metrics-alerter/internal/storage"
-	"github.com/go-http-utils/headers"
-	"github.com/go-resty/resty/v2"
 	"log"
 	"math/rand"
 	"net/http"
 	"runtime"
 	"time"
+
+	"github.com/go-http-utils/headers"
+	"github.com/go-resty/resty/v2"
+
+	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
 
 type Agent struct {
-	client        *resty.Client
-	serverAddress string
-	pollTicker    *time.Ticker
-	reportTicker  *time.Ticker
-	pollCount     int
-	memStats      *runtime.MemStats
+	client         *resty.Client
+	serverAddress  string
+	pollInterval   int
+	reportInterval int
+	pollTicker     *time.Ticker
+	reportTicker   *time.Ticker
+	pollCount      int
+	memStats       *runtime.MemStats
 }
 
-func NewAgent(serverAddress string, pollTicker, reportTicker *time.Ticker) *Agent {
+func NewAgent(serverAddress string, pollInterval, reportInterval int) *Agent {
 	return &Agent{
-		client:        resty.New(),
-		serverAddress: serverAddress,
-		pollTicker:    pollTicker,
-		reportTicker:  reportTicker,
-		memStats:      &runtime.MemStats{},
+		client:         resty.New(),
+		serverAddress:  serverAddress,
+		pollInterval:   pollInterval,
+		reportInterval: reportInterval,
+		memStats:       &runtime.MemStats{},
 	}
 }
 
 func (a *Agent) Run() {
+	a.pollTicker = time.NewTicker(time.Duration(a.pollInterval) * time.Second)
+	defer a.pollTicker.Stop()
+	a.reportTicker = time.NewTicker(time.Duration(a.reportInterval) * time.Second)
+	defer a.reportTicker.Stop()
+
 	go a.collectMemStats()
 	go a.reportMemStats()
+
 	time.Sleep(time.Minute)
 }
 
@@ -60,13 +70,13 @@ func (a *Agent) reportMemStats() {
 		log.Printf("metrics reporting, timestamp: %s", t.String())
 		items := []Item{
 			{
-				Type: storage.Counter,
+				Type: models.CounterType,
 				Values: []Value{
 					{"pollCount", fmt.Sprintf("%d", a.pollCount)},
 				},
 			},
 			{
-				Type: storage.Gauge,
+				Type: models.GaugeType,
 				Values: []Value{
 					{"RandomValue", fmt.Sprintf("%d", rand.Intn(10000))},
 					{"Alloc", fmt.Sprintf("%d", a.memStats.Alloc)},
@@ -111,9 +121,9 @@ func (a *Agent) sendRequest(metricType, metricName, metricValue string) {
 	url := fmt.Sprintf("http://%s/update/%s/%s/%s", a.serverAddress, metricType, metricName, metricValue)
 	resp, err := a.client.R().SetHeader(headers.ContentType, "text/plain").Post(url)
 	if err != nil {
-		log.Fatalf("failed to handle response from server:  %s\n%s", url, err.Error())
+		log.Printf("failed to handle response from server:  %s\n%s", url, err.Error())
 	}
 	if resp.StatusCode() != http.StatusOK {
-		log.Fatalf("unexpected response status %d from request %s", resp.StatusCode(), url)
+		log.Printf("unexpected response status %d from request %s", resp.StatusCode(), url)
 	}
 }
