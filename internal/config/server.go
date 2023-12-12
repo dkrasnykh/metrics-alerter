@@ -23,7 +23,7 @@ func (c *ServerConfig) Parse() error {
 		return err
 	}
 	if c.Address != "" {
-		runAddr = c.Address
+		c.Address = runAddr
 	}
 	return nil
 }
