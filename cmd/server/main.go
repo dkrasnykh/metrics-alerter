@@ -8,8 +8,7 @@ import (
 )
 
 func main() {
-	cfg := config.NewServerConfig()
-	err := cfg.Parse()
+	cfg, err := config.NewServerConfig()
 	if err != nil {
 		log.Fatal(err.Error())
 	}

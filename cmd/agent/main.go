@@ -8,8 +8,7 @@ import (
 )
 
 func main() {
-	cfg := config.NewAgentConfig()
-	err := cfg.Parse()
+	cfg, err := config.NewAgentConfig()
 	if err != nil {
 		log.Fatal(err.Error())
 	}
