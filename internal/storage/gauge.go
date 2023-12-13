@@ -22,8 +22,11 @@ func (s *GaugeStorage) Create(name string, value any) error {
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
-	s.storage[name] = value.(float64)
-
+	valueFloat64, ok := value.(float64)
+	if !ok {
+		return fmt.Errorf("error converting value %v to float64", value)
+	}
+	s.storage[name] = valueFloat64
 	return nil
 }
 

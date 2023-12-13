@@ -22,8 +22,11 @@ func (s *CounterStorage) Create(name string, value any) error {
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
-	s.storage[name] = value.(int64)
-
+	valueInt64, ok := value.(int64)
+	if !ok {
+		return fmt.Errorf("error converting value %v to int64", value)
+	}
+	s.storage[name] = valueInt64
 	return nil
 }
 
