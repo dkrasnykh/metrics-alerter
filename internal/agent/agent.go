@@ -46,20 +46,15 @@ func (a *Agent) Run() error {
 	ch := make(chan error)
 	go a.reportMemStats(ch)
 
-	select {
-	case err := <-ch:
-		return err
-	}
+	err := <-ch
+	return err
 }
 
 func (a *Agent) collectMemStats() {
-	for {
-		select {
-		case t := <-a.pollTicker.C:
-			a.pollCount++
-			runtime.ReadMemStats(a.memStats)
-			log.Printf("metrics collection, timestamp: %s\n", t.String())
-		}
+	for t := range a.pollTicker.C {
+		a.pollCount++
+		runtime.ReadMemStats(a.memStats)
+		log.Printf("metrics collection, timestamp: %s\n", t.String())
 	}
 }
 
@@ -74,55 +69,52 @@ func (a *Agent) reportMemStats(ch chan error) {
 		Values []Value
 	}
 
-	for {
-		select {
-		case t := <-a.reportTicker.C:
-			log.Printf("metrics reporting, timestamp: %s", t.String())
-			items := []Item{
-				{
-					Type: models.CounterType,
-					Values: []Value{
-						{"pollCount", fmt.Sprintf("%d", a.pollCount)},
-					},
+	for t := range a.reportTicker.C {
+		log.Printf("metrics reporting, timestamp: %s", t.String())
+		items := []Item{
+			{
+				Type: models.CounterType,
+				Values: []Value{
+					{"pollCount", fmt.Sprintf("%d", a.pollCount)},
 				},
-				{
-					Type: models.GaugeType,
-					Values: []Value{
-						{"RandomValue", fmt.Sprintf("%d", rand.Intn(10000))},
-						{"Alloc", fmt.Sprintf("%d", a.memStats.Alloc)},
-						{"BuckHashSys", fmt.Sprintf("%d", a.memStats.BuckHashSys)},
-						{"Frees", fmt.Sprintf("%d", a.memStats.Frees)},
-						{"GCCPUFraction", fmt.Sprintf("%f", a.memStats.GCCPUFraction)},
-						{"GCSys", fmt.Sprintf("%d", a.memStats.GCSys)},
-						{"HeapAlloc", fmt.Sprintf("%d", a.memStats.HeapAlloc)},
-						{"HeapIdle", fmt.Sprintf("%d", a.memStats.HeapIdle)},
-						{"HeapInuse", fmt.Sprintf("%d", a.memStats.HeapInuse)},
-						{"HeapObjects", fmt.Sprintf("%d", a.memStats.HeapObjects)},
-						{"HeapReleased", fmt.Sprintf("%d", a.memStats.HeapReleased)},
-						{"HeapSys", fmt.Sprintf("%d", a.memStats.HeapSys)},
-						{"LastGC", fmt.Sprintf("%d", a.memStats.LastGC)},
-						{"Lookups", fmt.Sprintf("%d", a.memStats.Lookups)},
-						{"MCacheInuse", fmt.Sprintf("%d", a.memStats.MCacheInuse)},
-						{"MCacheSys", fmt.Sprintf("%d", a.memStats.MCacheSys)},
-						{"MSpanInuse", fmt.Sprintf("%d", a.memStats.MSpanInuse)},
-						{"Mallocs", fmt.Sprintf("%d", a.memStats.Mallocs)},
-						{"NextGC", fmt.Sprintf("%d", a.memStats.NextGC)},
-						{"NumForcedGC", fmt.Sprintf("%d", a.memStats.NumForcedGC)},
-						{"NumGC", fmt.Sprintf("%d", a.memStats.NumGC)},
-						{"OtherSys", fmt.Sprintf("%d", a.memStats.OtherSys)},
-						{"PauseTotalNs", fmt.Sprintf("%d", a.memStats.PauseTotalNs)},
-						{"StackInuse", fmt.Sprintf("%d", a.memStats.StackInuse)},
-						{"StackSys", fmt.Sprintf("%d", a.memStats.StackSys)},
-						{"Sys", fmt.Sprintf("%d", a.memStats.Sys)},
-						{"TotalAlloc", fmt.Sprintf("%d", a.memStats.TotalAlloc)},
-					},
+			},
+			{
+				Type: models.GaugeType,
+				Values: []Value{
+					{"RandomValue", fmt.Sprintf("%d", rand.Intn(10000))},
+					{"Alloc", fmt.Sprintf("%d", a.memStats.Alloc)},
+					{"BuckHashSys", fmt.Sprintf("%d", a.memStats.BuckHashSys)},
+					{"Frees", fmt.Sprintf("%d", a.memStats.Frees)},
+					{"GCCPUFraction", fmt.Sprintf("%f", a.memStats.GCCPUFraction)},
+					{"GCSys", fmt.Sprintf("%d", a.memStats.GCSys)},
+					{"HeapAlloc", fmt.Sprintf("%d", a.memStats.HeapAlloc)},
+					{"HeapIdle", fmt.Sprintf("%d", a.memStats.HeapIdle)},
+					{"HeapInuse", fmt.Sprintf("%d", a.memStats.HeapInuse)},
+					{"HeapObjects", fmt.Sprintf("%d", a.memStats.HeapObjects)},
+					{"HeapReleased", fmt.Sprintf("%d", a.memStats.HeapReleased)},
+					{"HeapSys", fmt.Sprintf("%d", a.memStats.HeapSys)},
+					{"LastGC", fmt.Sprintf("%d", a.memStats.LastGC)},
+					{"Lookups", fmt.Sprintf("%d", a.memStats.Lookups)},
+					{"MCacheInuse", fmt.Sprintf("%d", a.memStats.MCacheInuse)},
+					{"MCacheSys", fmt.Sprintf("%d", a.memStats.MCacheSys)},
+					{"MSpanInuse", fmt.Sprintf("%d", a.memStats.MSpanInuse)},
+					{"Mallocs", fmt.Sprintf("%d", a.memStats.Mallocs)},
+					{"NextGC", fmt.Sprintf("%d", a.memStats.NextGC)},
+					{"NumForcedGC", fmt.Sprintf("%d", a.memStats.NumForcedGC)},
+					{"NumGC", fmt.Sprintf("%d", a.memStats.NumGC)},
+					{"OtherSys", fmt.Sprintf("%d", a.memStats.OtherSys)},
+					{"PauseTotalNs", fmt.Sprintf("%d", a.memStats.PauseTotalNs)},
+					{"StackInuse", fmt.Sprintf("%d", a.memStats.StackInuse)},
+					{"StackSys", fmt.Sprintf("%d", a.memStats.StackSys)},
+					{"Sys", fmt.Sprintf("%d", a.memStats.Sys)},
+					{"TotalAlloc", fmt.Sprintf("%d", a.memStats.TotalAlloc)},
 				},
-			}
-			for _, item := range items {
-				mType := item.Type
-				for _, m := range item.Values {
-					go a.sendRequest(mType, m.Name, m.Value, ch)
-				}
+			},
+		}
+		for _, item := range items {
+			mType := item.Type
+			for _, m := range item.Values {
+				go a.sendRequest(mType, m.Name, m.Value, ch)
 			}
 		}
 	}
