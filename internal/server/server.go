@@ -17,7 +17,7 @@ type Server struct {
 	router  *chi.Mux
 }
 
-func NewServer(address string) *Server {
+func New(address string) *Server {
 	return &Server{
 		address: address,
 		router:  chi.NewRouter(),
@@ -25,9 +25,8 @@ func NewServer(address string) *Server {
 }
 
 func (s *Server) Run() error {
-	cs := storage.NewCounterStorage()
-	gs := storage.NewGaugeStorage()
-	v := service.NewService(cs, gs)
+	r := storage.New()
+	v := service.New(r)
 	var err error
 	handler.T, err = template.New("webpage").Parse(handler.Tpl)
 	if err != nil {

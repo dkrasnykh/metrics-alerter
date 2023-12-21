@@ -25,7 +25,7 @@ type Agent struct {
 	memStats       *runtime.MemStats
 }
 
-func NewAgent(serverAddress string, pollInterval, reportInterval int) *Agent {
+func New(serverAddress string, pollInterval, reportInterval int) *Agent {
 	return &Agent{
 		client:         resty.New(),
 		serverAddress:  serverAddress,

@@ -16,8 +16,7 @@ const (
 	<!DOCTYPE html>
 	<html>
 		<body>
-			{{range .Counters}}<div>{{ .Name }} {{ .Value }}</div>{{end}}
-			{{range .Gauges}}<div>{{ .Name }} {{ .Value }}</div>{{end}}
+			{{range .Metrics}}<div>{{ .Type }} {{ .Name }} {{ .ValueInt64 }} {{ .ValueFloat64 }}</div>{{end}}
 		</body>
 	</html>`
 )
@@ -50,10 +49,14 @@ func (h *Handler) HandleUpdate(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
-	err := h.service.ValidateAndSave(metricType, metricName, metricValue)
-
+	err := h.service.Validate(metricType, metricValue)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	err = h.service.Save(metricType, metricName, metricValue)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
 	}
 }
 
@@ -74,20 +77,14 @@ func (h *Handler) HandleGet(res http.ResponseWriter, req *http.Request) {
 
 func (h *Handler) HandleGetAll(res http.ResponseWriter, req *http.Request) {
 	type Item struct {
-		Counters []models.Counter
-		Gauges   []models.Gauge
+		Metrics []models.Metric
 	}
-	counters, err := h.service.GetAllCounter()
+	metrics, err := h.service.GetAll()
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	gauges, err := h.service.GetAllGauge()
-	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	err = T.Execute(res, Item{Counters: counters, Gauges: gauges})
+	err = T.Execute(res, Item{Metrics: metrics})
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 		return

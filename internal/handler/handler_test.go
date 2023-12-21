@@ -11,14 +11,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage"
 )
 
 func TestHandleUpdate(t *testing.T) {
-	cr := storage.NewCounterStorage()
-	gr := storage.NewGaugeStorage()
-	v := service.NewService(cr, gr)
+	r := storage.New()
+	v := service.New(r)
 	h := NewHandler(v)
 	testServ := httptest.NewServer(h.InitRoutes())
 	defer testServ.Close()
@@ -87,16 +87,17 @@ func TestHandleUpdate(t *testing.T) {
 }
 
 func TestHandleGet(t *testing.T) {
-	cr := storage.NewCounterStorage()
-	gr := storage.NewGaugeStorage()
-	v := service.NewService(cr, gr)
+	r := storage.New()
+	v := service.New(r)
 	h := NewHandler(v)
 	testServ := httptest.NewServer(h.InitRoutes())
 	defer testServ.Close()
 
-	err := cr.Create("testCounter", int64(123))
+	m1 := models.Metric{Type: models.CounterType, Name: `testCounter`, ValueInt64: 123}
+	m2 := models.Metric{Type: models.GaugeType, Name: `testGuade`, ValueFloat64: 123}
+	err := r.Create(m1)
 	require.NoError(t, err)
-	err = gr.Create("testGuade", float64(123))
+	err = r.Create(m2)
 	require.NoError(t, err)
 
 	tests := []struct {

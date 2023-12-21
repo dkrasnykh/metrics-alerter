@@ -5,12 +5,9 @@ const (
 	CounterType string = "counter"
 )
 
-type Gauge struct {
-	Name  string
-	Value float64
-}
-
-type Counter struct {
-	Name  string
-	Value int64
+type Metric struct {
+	Type         string
+	Name         string
+	ValueInt64   int64
+	ValueFloat64 float64
 }

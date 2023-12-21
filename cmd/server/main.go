@@ -12,7 +12,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	s := server.NewServer(cfg.Address)
+	s := server.New(cfg.Address)
 	err = s.Run()
 	if err != nil {
 		log.Fatal(err.Error())

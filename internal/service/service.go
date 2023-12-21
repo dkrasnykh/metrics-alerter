@@ -10,103 +10,65 @@ import (
 	"github.com/dkrasnykh/metrics-alerter/internal/storage"
 )
 
+var ErrUnknownMetricType = errors.New("unknown metric type")
+
 type Service struct {
-	r map[string]repository.Storage
+	r repository.Storager
 }
 
-func NewService(cs *storage.CounterStorage, gs *storage.GaugeStorage) *Service {
-	return &Service{r: map[string]repository.Storage{
-		models.CounterType: cs,
-		models.GaugeType:   gs},
+func New(s *storage.Storage) *Service {
+	return &Service{
+		r: s,
 	}
 }
 
-func (s *Service) ValidateAndSave(metricType, metricName, metricValue string) error {
+func (s *Service) Save(metricType, metricName, metricValue string) error {
+	metric := models.Metric{Name: metricName, Type: metricType}
 	switch metricType {
 	case models.GaugeType:
-		value, err := strconv.ParseFloat(metricValue, 64)
-		if err != nil {
-			return errors.New("incorrect value for gauge type metric")
-		}
-		return s.r[models.GaugeType].Update(metricName, value)
+		metric.ValueFloat64, _ = strconv.ParseFloat(metricValue, 64)
 	case models.CounterType:
-		value, err := strconv.ParseInt(metricValue, 10, 64)
-		if err != nil {
-			return errors.New("incorrect value for counter type metric")
-		}
-		return s.saveCounterValue(metricName, value)
-	default:
-		return errors.New("unknown metric type")
+		metric.ValueInt64 = s.calculateCounterValue(metricName, metricValue)
 	}
+	err := s.r.Create(metric)
+	return err
 }
 
-func (s *Service) saveCounterValue(metricName string, value int64) error {
-	currValueAny, err := s.r[models.CounterType].Get(metricName)
+func (s *Service) Validate(metricType, value string) error {
+	var err error
+	switch metricType {
+	case models.CounterType:
+		_, err = strconv.ParseInt(value, 10, 64)
+	case models.GaugeType:
+		_, err = strconv.ParseFloat(value, 64)
+	default:
+		err = ErrUnknownMetricType
+	}
+	return err
+}
+
+func (s *Service) calculateCounterValue(name, value string) int64 {
+	metric, err := s.r.Get(models.CounterType, name)
+	currValue, _ := strconv.ParseInt(value, 10, 64)
 	if err == nil {
-		currValue, ok := currValueAny.(int64)
-		if !ok {
-			return fmt.Errorf("error retriving current value for counter metric %s", metricName)
-		}
-		value += currValue
+		currValue += metric.ValueInt64
 	}
-	return s.r[models.CounterType].Update(metricName, value)
+	return currValue
 }
 
-func (s *Service) GetMetricValue(metricType, metricName string) (string, error) {
-	switch metricType {
-	case models.GaugeType:
-		return s.getGaugeValue(metricName)
+func (s *Service) GetMetricValue(mType, mName string) (string, error) {
+	m, err := s.r.Get(mType, mName)
+	if err != nil {
+		return "", err
+	}
+	switch mType {
 	case models.CounterType:
-		return s.getCounterValue(metricName)
+		return fmt.Sprintf("%d", m.ValueInt64), nil
 	default:
-		return "", errors.New("unknown metric type")
+		return strconv.FormatFloat(m.ValueFloat64, 'g', -1, 64), nil
 	}
 }
 
-func (s *Service) getGaugeValue(metricName string) (string, error) {
-	valueAny, err := s.r[models.GaugeType].Get(metricName)
-	if err != nil {
-		return "", err
-	}
-	value, ok := valueAny.(float64)
-	if !ok {
-		return "", fmt.Errorf("error retriving gauge value %s", metricName)
-	}
-	return strconv.FormatFloat(value, 'g', -1, 64), nil
-}
-
-func (s *Service) getCounterValue(metricName string) (string, error) {
-	valueAny, err := s.r[models.CounterType].Get(metricName)
-	if err != nil {
-		return "", err
-	}
-	value, ok := valueAny.(int64)
-	if !ok {
-		return "", fmt.Errorf("error retriving counter value %s", metricName)
-	}
-	return fmt.Sprintf("%d", value), nil
-}
-
-func (s *Service) GetAllCounter() ([]models.Counter, error) {
-	valueAny, err := s.r[models.CounterType].GetAll()
-	if err != nil {
-		return nil, err
-	}
-	value, ok := valueAny.([]models.Counter)
-	if !ok {
-		return nil, fmt.Errorf("error retriving all counter values")
-	}
-	return value, nil
-}
-
-func (s *Service) GetAllGauge() ([]models.Gauge, error) {
-	valueAny, err := s.r[models.GaugeType].GetAll()
-	if err != nil {
-		return nil, err
-	}
-	value, ok := valueAny.([]models.Gauge)
-	if !ok {
-		return nil, fmt.Errorf("error retriving all gauge values")
-	}
-	return value, nil
+func (s *Service) GetAll() ([]models.Metric, error) {
+	return s.r.GetAll()
 }
