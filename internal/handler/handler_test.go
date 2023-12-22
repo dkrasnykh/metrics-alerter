@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage"
@@ -19,7 +20,8 @@ import (
 func TestHandleUpdate(t *testing.T) {
 	r := storage.New()
 	v := service.New(r)
-	h := NewHandler(v)
+	l, _ := logger.New()
+	h := New(v, l)
 	testServ := httptest.NewServer(h.InitRoutes())
 	defer testServ.Close()
 
@@ -89,7 +91,8 @@ func TestHandleUpdate(t *testing.T) {
 func TestHandleGet(t *testing.T) {
 	r := storage.New()
 	v := service.New(r)
-	h := NewHandler(v)
+	l, _ := logger.New()
+	h := New(v, l)
 	testServ := httptest.NewServer(h.InitRoutes())
 	defer testServ.Close()
 

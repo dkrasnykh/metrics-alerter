@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/dkrasnykh/metrics-alerter/internal/handler"
+	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage"
 )
@@ -32,7 +33,11 @@ func (s *Server) Run() error {
 	if err != nil {
 		return err
 	}
-	h := handler.NewHandler(v)
+	l, err := logger.New()
+	if err != nil {
+		return err
+	}
+	h := handler.New(v, l)
 
 	err = http.ListenAndServe(s.address, h.InitRoutes())
 	if err != nil {

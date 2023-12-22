@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-http-utils/headers"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
 )
@@ -25,20 +26,24 @@ var T *template.Template
 
 type Handler struct {
 	service *service.Service
+	logger  *logger.Logger
 }
 
-func NewHandler(s *service.Service) *Handler {
-	return &Handler{service: s}
+func New(s *service.Service, l *logger.Logger) *Handler {
+	return &Handler{service: s,
+		logger: l}
 }
 
 func (h *Handler) InitRoutes() *chi.Mux {
-	router := chi.NewRouter()
+	r := chi.NewRouter()
 
-	router.Post("/update/{metricType}/{metricName}/{metricValue}", h.HandleUpdate)
-	router.Get("/value/{metricType}/{metricName}", h.HandleGet)
-	router.Get("/", h.HandleGetAll)
+	r.Use(h.Logger)
 
-	return router
+	r.Post("/update/{metricType}/{metricName}/{metricValue}", h.HandleUpdate)
+	r.Get("/value/{metricType}/{metricName}", h.HandleGet)
+	r.Get("/", h.HandleGetAll)
+
+	return r
 }
 
 func (h *Handler) HandleUpdate(res http.ResponseWriter, req *http.Request) {
