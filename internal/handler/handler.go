@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/json"
+	"errors"
 	"html/template"
 	"net/http"
 
@@ -17,7 +19,7 @@ const (
 	<!DOCTYPE html>
 	<html>
 		<body>
-			{{range .Metrics}}<div>{{ .Type }} {{ .Name }} {{ .ValueInt64 }} {{ .ValueFloat64 }}</div>{{end}}
+			{{range .Metrics}}<div>{{ .MType }} {{ .ID }} {{ .Delta }} {{ .Value }}</div>{{end}}
 		</body>
 	</html>`
 )
@@ -37,38 +39,50 @@ func New(s *service.Service, l *logger.Logger) *Handler {
 func (h *Handler) InitRoutes() *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Use(h.Logger)
+	r.Use(h.WithLogging)
 
-	r.Post("/update/{metricType}/{metricName}/{metricValue}", h.HandleUpdate)
-	r.Get("/value/{metricType}/{metricName}", h.HandleGet)
+	r.Post("/update/{metricType}/{metricName}/{metricValue}", h.HandleUpdateByParam)
+	r.Get("/value/{metricType}/{metricName}", h.HandleGetByParam)
 	r.Get("/", h.HandleGetAll)
+
+	r.Post("/update", h.HandleUpdate)
+	r.Post("/update/", h.HandleUpdate)
+	r.Post("/value", h.HandleGet)
+	r.Post("/value/", h.HandleGet)
 
 	return r
 }
 
-func (h *Handler) HandleUpdate(res http.ResponseWriter, req *http.Request) {
+func (h *Handler) HandleUpdateByParam(res http.ResponseWriter, req *http.Request) {
 	metricType, metricName, metricValue := chi.URLParam(req, "metricType"),
 		chi.URLParam(req, "metricName"), chi.URLParam(req, "metricValue")
+
 	res.Header().Set(headers.ContentType, "text/plain")
-	if metricName == "" {
-		res.WriteHeader(http.StatusNotFound)
-		return
-	}
-	err := h.service.Validate(metricType, metricValue)
+
+	m := models.Convert(metricType, metricName, metricValue)
+	err := h.service.Validate(m)
 	if err != nil {
+		if errors.Is(err, service.ErrIdIsEmpty) {
+			res.WriteHeader(http.StatusNotFound)
+			return
+		}
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	err = h.service.Save(metricType, metricName, metricValue)
+
+	_, err = h.service.Save(m)
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 	}
+	res.WriteHeader(http.StatusOK)
 }
 
-func (h *Handler) HandleGet(res http.ResponseWriter, req *http.Request) {
+func (h *Handler) HandleGetByParam(res http.ResponseWriter, req *http.Request) {
 	metricType, metricName := chi.URLParam(req, "metricType"), chi.URLParam(req, "metricName")
 	res.Header().Set(headers.ContentType, "text/plain")
+
 	value, err := h.service.GetMetricValue(metricType, metricName)
+
 	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
 		return
@@ -78,11 +92,12 @@ func (h *Handler) HandleGet(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) HandleGetAll(res http.ResponseWriter, req *http.Request) {
 	type Item struct {
-		Metrics []models.Metric
+		Metrics []models.Metrics
 	}
 	metrics, err := h.service.GetAll()
 	if err != nil {
@@ -94,4 +109,54 @@ func (h *Handler) HandleGetAll(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) HandleUpdate(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set(headers.ContentType, "application/json")
+	m, err := models.ExtractBody(req)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	err = h.service.Validate(*m)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	*m, err = h.service.Save(*m)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	buf, err := json.Marshal(*m)
+	_, err = res.Write(buf)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+	}
+	res.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) HandleGet(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set(headers.ContentType, "application/json")
+	m, err := models.ExtractBody(req)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if m.MType != models.CounterType && m.MType != models.GaugeType {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	*m, err = h.service.Get((*m).MType, (*m).ID)
+	if err != nil {
+		res.WriteHeader(http.StatusNotFound)
+		return
+	}
+	buf, err := json.Marshal(*m)
+	_, err = res.Write(buf)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+	}
+	res.WriteHeader(http.StatusOK)
 }

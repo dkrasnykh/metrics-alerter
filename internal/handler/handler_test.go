@@ -17,7 +17,7 @@ import (
 	"github.com/dkrasnykh/metrics-alerter/internal/storage"
 )
 
-func TestHandleUpdate(t *testing.T) {
+func TestHandleUpdateByParam(t *testing.T) {
 	r := storage.New()
 	v := service.New(r)
 	l, _ := logger.New()
@@ -88,19 +88,20 @@ func TestHandleUpdate(t *testing.T) {
 	}
 }
 
-func TestHandleGet(t *testing.T) {
+func TestHandleGetByParam(t *testing.T) {
 	r := storage.New()
 	v := service.New(r)
 	l, _ := logger.New()
 	h := New(v, l)
 	testServ := httptest.NewServer(h.InitRoutes())
 	defer testServ.Close()
-
-	m1 := models.Metric{Type: models.CounterType, Name: `testCounter`, ValueInt64: 123}
-	m2 := models.Metric{Type: models.GaugeType, Name: `testGuade`, ValueFloat64: 123}
-	err := r.Create(m1)
+	delta := int64(123)
+	value := float64(123)
+	m1 := models.Metrics{MType: models.CounterType, ID: `testCounter`, Delta: &delta}
+	m2 := models.Metrics{MType: models.GaugeType, ID: `testGuade`, Value: &value}
+	_, err := r.Create(m1)
 	require.NoError(t, err)
-	err = r.Create(m2)
+	_, err = r.Create(m2)
 	require.NoError(t, err)
 
 	tests := []struct {

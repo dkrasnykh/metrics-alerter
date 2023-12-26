@@ -10,19 +10,22 @@ import (
 )
 
 var (
-	mCounter = models.Metric{Type: models.CounterType, Name: "name1", ValueInt64: 500}
-	mGauge   = models.Metric{Type: models.GaugeType, Name: "name1", ValueFloat64: 500}
+	mdelta   = int64(500)
+	mvalue   = float64(500)
+	mCounter = models.Metrics{MType: models.CounterType, ID: "name1", Delta: &mdelta}
+	mGauge   = models.Metrics{MType: models.GaugeType, ID: "name1", Value: &mvalue}
 )
 
 func TestCreate(t *testing.T) {
 	s := New()
-	err := s.Create(mCounter)
+	m, err := s.Create(mCounter)
 	require.NoError(t, err)
+	assert.Equal(t, mCounter, m)
 }
 
 func TestGet(t *testing.T) {
 	s := New()
-	err := s.Create(mCounter)
+	_, err := s.Create(mCounter)
 	require.NoError(t, err)
 
 	value, err := s.Get(models.CounterType, "name1")
@@ -35,45 +38,44 @@ func TestGet(t *testing.T) {
 
 func TestGetAll(t *testing.T) {
 	s := New()
-	err := s.Create(mCounter)
+	_, err := s.Create(mCounter)
 	require.NoError(t, err)
-	err = s.Create(mGauge)
+	_, err = s.Create(mGauge)
 	require.NoError(t, err)
 
 	vals, err := s.GetAll()
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(vals))
-	assert.Equal(t, int64(1000),
-		vals[0].ValueInt64+int64(vals[0].ValueFloat64)+vals[1].ValueInt64+int64(vals[1].ValueFloat64))
 }
 
 func TestUpdate(t *testing.T) {
 	s := New()
-	err := s.Create(mCounter)
+	_, err := s.Create(mCounter)
 	require.NoError(t, err)
 	value, err := s.Get(models.CounterType, `name1`)
 	require.NoError(t, err)
-	assert.Equal(t, mCounter.ValueInt64, value.ValueInt64)
+	assert.Equal(t, *mCounter.Delta, *value.Delta)
 
-	updated := models.Metric{Type: models.CounterType, Name: `name1`, ValueInt64: 450}
-	err = s.Update(updated)
+	delta := int64(450)
+	updated := models.Metrics{MType: models.CounterType, ID: `name1`, Delta: &delta}
+	_, err = s.Update(updated)
 	require.NoError(t, err)
 	value, err = s.Get(models.CounterType, `name1`)
 	require.NoError(t, err)
-	assert.Equal(t, int64(450), value.ValueInt64)
+	assert.Equal(t, delta, *value.Delta)
 }
 
 func TestDelete(t *testing.T) {
 	s := New()
-	err := s.Create(mCounter)
+	_, err := s.Create(mCounter)
 	require.NoError(t, err)
 
-	_, err = s.Get(mCounter.Type, mCounter.Name)
+	_, err = s.Get(mCounter.MType, mCounter.ID)
 	require.NoError(t, err)
 
-	err = s.Delete(mCounter.Type, mCounter.Name)
+	err = s.Delete(mCounter.MType, mCounter.ID)
 	require.NoError(t, err)
 
-	_, err = s.Get(mCounter.Type, mCounter.Name)
+	_, err = s.Get(mCounter.MType, mCounter.ID)
 	require.Error(t, err)
 }

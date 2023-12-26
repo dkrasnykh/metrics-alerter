@@ -8,13 +8,13 @@ import (
 )
 
 type Key struct {
-	Type string
-	Name string
+	MType string
+	ID    string
 }
 
 type Value struct {
-	ValueFloat64 float64
-	ValueInt64   int64
+	Value float64
+	Delta int64
 }
 
 type Storage struct {
@@ -28,44 +28,40 @@ func New() *Storage {
 	}
 }
 
-func (s *Storage) Create(m models.Metric) error {
+func (s *Storage) Create(m models.Metrics) (models.Metrics, error) {
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
-	k := Key{m.Type, m.Name}
-	v := Value{m.ValueFloat64, m.ValueInt64}
+	k := Key{m.MType, m.ID}
+	v := Value{valueOrDefault(m.Value), deltaOrDefault(m.Delta)}
 	s.storage[k] = v
-	return nil
-}
-
-func (s *Storage) Get(mType, mName string) (models.Metric, error) {
-	s.mx.RLock()
-	defer s.mx.RUnlock()
-
-	m := models.Metric{Type: mType, Name: mName}
-	k := Key{mType, mName}
-	v, ok := s.storage[k]
-	if !ok {
-		return m, fmt.Errorf("value by %s type and %s name not found", mType, mName)
-	}
-	m.ValueInt64, m.ValueFloat64 = v.ValueInt64, v.ValueFloat64
 	return m, nil
 }
 
-func (s *Storage) GetAll() ([]models.Metric, error) {
+func (s *Storage) Get(mType, mName string) (models.Metrics, error) {
 	s.mx.RLock()
 	defer s.mx.RUnlock()
 
-	ms := make([]models.Metric, 0, len(s.storage))
+	k := Key{mType, mName}
+	v, ok := s.storage[k]
+	if !ok {
+		return models.Metrics{}, fmt.Errorf("value by %s type and %s name not found", mType, mName)
+	}
+	return models.GetMetric(k.MType, k.ID, v.Value, v.Delta), nil
+}
+
+func (s *Storage) GetAll() ([]models.Metrics, error) {
+	s.mx.RLock()
+	defer s.mx.RUnlock()
+
+	ms := make([]models.Metrics, 0, len(s.storage))
 	for k, v := range s.storage {
-		m := models.Metric{Type: k.Type, Name: k.Name,
-			ValueFloat64: v.ValueFloat64, ValueInt64: v.ValueInt64}
-		ms = append(ms, m)
+		ms = append(ms, models.GetMetric(k.MType, k.ID, v.Value, v.Delta))
 	}
 	return ms, nil
 }
 
-func (s *Storage) Update(m models.Metric) error {
+func (s *Storage) Update(m models.Metrics) (models.Metrics, error) {
 	return s.Create(m)
 }
 
@@ -77,7 +73,21 @@ func (s *Storage) Delete(mType, mName string) error {
 
 	s.mx.Lock()
 	defer s.mx.Unlock()
-	k := Key{m.Type, m.Name}
+	k := Key{m.MType, m.ID}
 	delete(s.storage, k)
 	return nil
+}
+
+func deltaOrDefault(p *int64) int64 {
+	if p == nil {
+		return 0
+	}
+	return *p
+}
+
+func valueOrDefault(p *float64) float64 {
+	if p == nil {
+		return 0
+	}
+	return *p
 }

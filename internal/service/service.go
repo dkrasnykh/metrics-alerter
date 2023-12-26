@@ -11,6 +11,7 @@ import (
 )
 
 var ErrUnknownMetricType = errors.New("unknown metric type")
+var ErrIdIsEmpty = errors.New("metric ID is empty")
 
 type Service struct {
 	r repository.Storager
@@ -22,38 +23,39 @@ func New(s *storage.Storage) *Service {
 	}
 }
 
-func (s *Service) Save(metricType, metricName, metricValue string) error {
-	metric := models.Metric{Name: metricName, Type: metricType}
-	switch metricType {
-	case models.GaugeType:
-		metric.ValueFloat64, _ = strconv.ParseFloat(metricValue, 64)
-	case models.CounterType:
-		metric.ValueInt64 = s.calculateCounterValue(metricName, metricValue)
+func (s *Service) Validate(m models.Metrics) error {
+	if m.ID == `` {
+		return ErrIdIsEmpty
 	}
-	err := s.r.Create(metric)
-	return err
-}
-
-func (s *Service) Validate(metricType, value string) error {
-	var err error
-	switch metricType {
-	case models.CounterType:
-		_, err = strconv.ParseInt(value, 10, 64)
+	switch m.MType {
 	case models.GaugeType:
-		_, err = strconv.ParseFloat(value, 64)
+		if m.Value == nil {
+			return fmt.Errorf(`value undefined for metric type %s`, m.MType)
+		}
+	case models.CounterType:
+		if m.Delta == nil {
+			return fmt.Errorf(`delta undefined for metric type %s`, m.MType)
+		}
 	default:
-		err = ErrUnknownMetricType
+		return ErrUnknownMetricType
 	}
-	return err
+	return nil
 }
 
-func (s *Service) calculateCounterValue(name, value string) int64 {
-	metric, err := s.r.Get(models.CounterType, name)
-	currValue, _ := strconv.ParseInt(value, 10, 64)
-	if err == nil {
-		currValue += metric.ValueInt64
+func (s *Service) Save(m models.Metrics) (models.Metrics, error) {
+	if m.MType == models.CounterType {
+		delta := s.calculateCounterValue(m.ID, *m.Delta)
+		m.Delta = &delta
 	}
-	return currValue
+	return s.r.Update(m)
+}
+
+func (s *Service) calculateCounterValue(name string, value int64) int64 {
+	metric, err := s.r.Get(models.CounterType, name)
+	if err == nil {
+		value += *metric.Delta
+	}
+	return value
 }
 
 func (s *Service) GetMetricValue(mType, mName string) (string, error) {
@@ -63,12 +65,16 @@ func (s *Service) GetMetricValue(mType, mName string) (string, error) {
 	}
 	switch mType {
 	case models.CounterType:
-		return fmt.Sprintf("%d", m.ValueInt64), nil
+		return fmt.Sprintf("%d", *m.Delta), nil
 	default:
-		return strconv.FormatFloat(m.ValueFloat64, 'g', -1, 64), nil
+		return strconv.FormatFloat(*m.Value, 'g', -1, 64), nil
 	}
 }
 
-func (s *Service) GetAll() ([]models.Metric, error) {
+func (s *Service) GetAll() ([]models.Metrics, error) {
 	return s.r.GetAll()
+}
+
+func (s *Service) Get(mType, mName string) (models.Metrics, error) {
+	return s.r.Get(mType, mName)
 }

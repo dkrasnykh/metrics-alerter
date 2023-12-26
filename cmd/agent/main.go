@@ -13,8 +13,5 @@ func main() {
 		log.Fatal(err.Error())
 	}
 	a := agent.New(cfg.Address, cfg.PollInterval, cfg.ReportInterval)
-	err = a.Run()
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	a.Run()
 }

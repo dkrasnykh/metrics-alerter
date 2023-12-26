@@ -1,11 +1,14 @@
 package agent
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/go-http-utils/headers"
@@ -21,7 +24,7 @@ type Agent struct {
 	reportInterval int
 	pollTicker     *time.Ticker
 	reportTicker   *time.Ticker
-	pollCount      int
+	pollCount      int64
 	memStats       *runtime.MemStats
 }
 
@@ -35,19 +38,16 @@ func New(serverAddress string, pollInterval, reportInterval int) *Agent {
 	}
 }
 
-func (a *Agent) Run() error {
+func (a *Agent) Run() {
 	a.pollTicker = time.NewTicker(time.Duration(a.pollInterval) * time.Second)
 	defer a.pollTicker.Stop()
 	a.reportTicker = time.NewTicker(time.Duration(a.reportInterval) * time.Second)
 	defer a.reportTicker.Stop()
 
 	go a.collectMemStats()
+	go a.reportMemStats()
 
-	ch := make(chan error)
-	go a.reportMemStats(ch)
-
-	err := <-ch
-	return err
+	time.Sleep(time.Minute)
 }
 
 func (a *Agent) collectMemStats() {
@@ -58,75 +58,66 @@ func (a *Agent) collectMemStats() {
 	}
 }
 
-func (a *Agent) reportMemStats(ch chan error) {
-	type Value struct {
-		Name  string
-		Value string
-	}
-
-	type Item struct {
-		Type   string
-		Values []Value
-	}
-
+func (a *Agent) reportMemStats() {
 	for t := range a.reportTicker.C {
 		log.Printf("metrics reporting, timestamp: %s", t.String())
-		items := []Item{
-			{
-				Type: models.CounterType,
-				Values: []Value{
-					{"pollCount", fmt.Sprintf("%d", a.pollCount)},
-				},
-			},
-			{
-				Type: models.GaugeType,
-				Values: []Value{
-					{"RandomValue", fmt.Sprintf("%d", rand.Intn(10000))},
-					{"Alloc", fmt.Sprintf("%d", a.memStats.Alloc)},
-					{"BuckHashSys", fmt.Sprintf("%d", a.memStats.BuckHashSys)},
-					{"Frees", fmt.Sprintf("%d", a.memStats.Frees)},
-					{"GCCPUFraction", fmt.Sprintf("%f", a.memStats.GCCPUFraction)},
-					{"GCSys", fmt.Sprintf("%d", a.memStats.GCSys)},
-					{"HeapAlloc", fmt.Sprintf("%d", a.memStats.HeapAlloc)},
-					{"HeapIdle", fmt.Sprintf("%d", a.memStats.HeapIdle)},
-					{"HeapInuse", fmt.Sprintf("%d", a.memStats.HeapInuse)},
-					{"HeapObjects", fmt.Sprintf("%d", a.memStats.HeapObjects)},
-					{"HeapReleased", fmt.Sprintf("%d", a.memStats.HeapReleased)},
-					{"HeapSys", fmt.Sprintf("%d", a.memStats.HeapSys)},
-					{"LastGC", fmt.Sprintf("%d", a.memStats.LastGC)},
-					{"Lookups", fmt.Sprintf("%d", a.memStats.Lookups)},
-					{"MCacheInuse", fmt.Sprintf("%d", a.memStats.MCacheInuse)},
-					{"MCacheSys", fmt.Sprintf("%d", a.memStats.MCacheSys)},
-					{"MSpanInuse", fmt.Sprintf("%d", a.memStats.MSpanInuse)},
-					{"Mallocs", fmt.Sprintf("%d", a.memStats.Mallocs)},
-					{"NextGC", fmt.Sprintf("%d", a.memStats.NextGC)},
-					{"NumForcedGC", fmt.Sprintf("%d", a.memStats.NumForcedGC)},
-					{"NumGC", fmt.Sprintf("%d", a.memStats.NumGC)},
-					{"OtherSys", fmt.Sprintf("%d", a.memStats.OtherSys)},
-					{"PauseTotalNs", fmt.Sprintf("%d", a.memStats.PauseTotalNs)},
-					{"StackInuse", fmt.Sprintf("%d", a.memStats.StackInuse)},
-					{"StackSys", fmt.Sprintf("%d", a.memStats.StackSys)},
-					{"Sys", fmt.Sprintf("%d", a.memStats.Sys)},
-					{"TotalAlloc", fmt.Sprintf("%d", a.memStats.TotalAlloc)},
-				},
-			},
+		f := rand.Float64()
+		metrics := []models.Metrics{
+			{ID: `PollCount`, MType: models.CounterType, Delta: &a.pollCount},
+			{ID: `RandomValue`, MType: models.GaugeType, Value: &f},
+			{ID: `Alloc`, MType: models.GaugeType, Value: a.parse(a.memStats.Alloc)},
+			{ID: `BuckHashSys`, MType: models.GaugeType, Value: a.parse(a.memStats.BuckHashSys)},
+			{ID: `Frees`, MType: models.GaugeType, Value: a.parse(a.memStats.Frees)},
+			{ID: `GCCPUFraction`, MType: models.GaugeType, Value: &a.memStats.GCCPUFraction},
+			{ID: `GCSys`, MType: models.GaugeType, Value: a.parse(a.memStats.GCSys)},
+			{ID: `HeapAlloc`, MType: models.GaugeType, Value: a.parse(a.memStats.HeapAlloc)},
+			{ID: `HeapIdle`, MType: models.GaugeType, Value: a.parse(a.memStats.HeapIdle)},
+			{ID: `HeapInuse`, MType: models.GaugeType, Value: a.parse(a.memStats.HeapInuse)},
+			{ID: `HeapObjects`, MType: models.GaugeType, Value: a.parse(a.memStats.HeapObjects)},
+			{ID: `HeapReleased`, MType: models.GaugeType, Value: a.parse(a.memStats.HeapReleased)},
+			{ID: `HeapSys`, MType: models.GaugeType, Value: a.parse(a.memStats.HeapSys)},
+			{ID: `LastGC`, MType: models.GaugeType, Value: a.parse(a.memStats.LastGC)},
+			{ID: `Lookups`, MType: models.GaugeType, Value: a.parse(a.memStats.Lookups)},
+			{ID: `MCacheInuse`, MType: models.GaugeType, Value: a.parse(a.memStats.MCacheInuse)},
+			{ID: `MCacheSys`, MType: models.GaugeType, Value: a.parse(a.memStats.MCacheSys)},
+			{ID: `MSpanInuse`, MType: models.GaugeType, Value: a.parse(a.memStats.MSpanInuse)},
+			{ID: `MSpanSys`, MType: models.GaugeType, Value: a.parse(a.memStats.MSpanSys)},
+			{ID: `Mallocs`, MType: models.GaugeType, Value: a.parse(a.memStats.Mallocs)},
+			{ID: `NextGC`, MType: models.GaugeType, Value: a.parse(a.memStats.NextGC)},
+			{ID: `NumForcedGC`, MType: models.GaugeType, Value: a.parse(uint64(a.memStats.NumForcedGC))},
+			{ID: `NumGC`, MType: models.GaugeType, Value: a.parse(uint64(a.memStats.NumGC))},
+			{ID: `OtherSys`, MType: models.GaugeType, Value: a.parse(a.memStats.OtherSys)},
+			{ID: `PauseTotalNs`, MType: models.GaugeType, Value: a.parse(a.memStats.PauseTotalNs)},
+			{ID: `StackInuse`, MType: models.GaugeType, Value: a.parse(a.memStats.StackInuse)},
+			{ID: `StackSys`, MType: models.GaugeType, Value: a.parse(a.memStats.StackSys)},
+			{ID: `Sys`, MType: models.GaugeType, Value: a.parse(a.memStats.Sys)},
+			{ID: `TotalAlloc`, MType: models.GaugeType, Value: a.parse(a.memStats.TotalAlloc)},
 		}
-		for _, item := range items {
-			mType := item.Type
-			for _, m := range item.Values {
-				go a.sendRequest(mType, m.Name, m.Value, ch)
-			}
+		for _, m := range metrics {
+			go a.sendRequest(m)
 		}
 	}
 }
 
-func (a *Agent) sendRequest(metricType, metricName, metricValue string, ch chan error) {
-	url := fmt.Sprintf("http://%s/update/%s/%s/%s", a.serverAddress, metricType, metricName, metricValue)
-	resp, err := a.client.R().SetHeader(headers.ContentType, "text/plain").Post(url)
+func (a *Agent) parse(v uint64) *float64 {
+	f, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64)
 	if err != nil {
-		ch <- fmt.Errorf("failed to handle response from server:  %s\n%s", url, err.Error())
+		log.Printf("error: %s", err.Error())
+	}
+	return &f
+}
+
+func (a *Agent) sendRequest(m models.Metrics) {
+	url := fmt.Sprintf("http://%s/update/", a.serverAddress)
+	buf, err := json.Marshal(m)
+	if err != nil {
+		log.Printf("error: %s", err.Error())
+	}
+	resp, err := a.client.R().SetHeader(headers.ContentType, `application/json`).SetBody(bytes.NewBuffer(buf)).Post(url)
+	if err != nil {
+		log.Printf("error: %s", err.Error())
 	}
 	if resp.StatusCode() != http.StatusOK {
-		ch <- fmt.Errorf("unexpected response status %d from request %s", resp.StatusCode(), url)
+		log.Printf("error: %s", err.Error())
 	}
 }

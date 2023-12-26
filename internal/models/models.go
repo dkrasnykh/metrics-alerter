@@ -5,9 +5,9 @@ const (
 	CounterType string = "counter"
 )
 
-type Metric struct {
-	Type         string
-	Name         string
-	ValueInt64   int64
-	ValueFloat64 float64
+type Metrics struct {
+	ID    string   `json:"id"`
+	MType string   `json:"type"`
+	Delta *int64   `json:"delta,omitempty"`
+	Value *float64 `json:"value,omitempty"`
 }

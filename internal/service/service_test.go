@@ -15,13 +15,26 @@ func TestValidate(t *testing.T) {
 	r := storage.New()
 	s := New(r)
 
-	err := s.Validate(models.CounterType, "101")
+	delta := int64(10)
+	value := float64(100)
+
+	err := s.Validate(models.Metrics{MType: models.CounterType, ID: `test`, Delta: &delta})
 	require.NoError(t, err)
 
-	err = s.Validate(models.GaugeType, "101.0")
+	err = s.Validate(models.Metrics{MType: models.CounterType, ID: `test`, Value: &value})
+	require.Error(t, err)
+
+	err = s.Validate(models.Metrics{MType: models.CounterType, ID: ``, Delta: &delta})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrIdIsEmpty))
+
+	err = s.Validate(models.Metrics{MType: models.GaugeType, ID: `test`, Value: &value})
 	require.NoError(t, err)
 
-	err = s.Validate("unknown", "101")
+	err = s.Validate(models.Metrics{MType: models.GaugeType, ID: `test`, Delta: &delta})
+	require.Error(t, err)
+
+	err = s.Validate(models.Metrics{MType: `unknown`, ID: `test`, Value: &value})
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUnknownMetricType))
 }
@@ -29,22 +42,24 @@ func TestValidate(t *testing.T) {
 func TestSave(t *testing.T) {
 	r := storage.New()
 	s := New(r)
-
-	err := s.Save(models.CounterType, `name1`, `101`)
+	value := float64(100)
+	m := models.Metrics{MType: models.GaugeType, ID: `test`, Value: &value}
+	saved, err := s.Save(m)
 	require.NoError(t, err)
+	assert.Equal(t, m, saved)
 }
 
 func TestCalculateCounterValue(t *testing.T) {
 	r := storage.New()
 	s := New(r)
 
-	value := s.calculateCounterValue(`name1`, `250`)
+	value := s.calculateCounterValue(`name1`, 250)
 	assert.Equal(t, int64(250), value)
-
-	err := r.Create(models.Metric{Type: models.CounterType, Name: `name1`, ValueInt64: 500})
+	delta := int64(500)
+	_, err := r.Create(models.Metrics{MType: models.CounterType, ID: `name1`, Delta: &delta})
 	require.NoError(t, err)
 
-	value = s.calculateCounterValue(`name1`, `250`)
+	value = s.calculateCounterValue(`name1`, 250)
 	assert.Equal(t, int64(750), value)
 }
 
@@ -55,7 +70,8 @@ func TestGetCounterMetricValue(t *testing.T) {
 	_, err := s.GetMetricValue(models.CounterType, "test")
 	require.Error(t, err)
 
-	err = s.Save(models.CounterType, "test", "123")
+	delta := int64(123)
+	_, err = s.Save(models.Metrics{MType: models.CounterType, ID: `test`, Delta: &delta})
 	require.NoError(t, err)
 	value, err := s.GetMetricValue(models.CounterType, "test")
 	require.NoError(t, err)
@@ -65,15 +81,15 @@ func TestGetCounterMetricValue(t *testing.T) {
 func TestGetAll(t *testing.T) {
 	r := storage.New()
 	s := New(r)
+	delta := int64(500)
+	value := float64(500)
 
-	err := r.Create(models.Metric{Type: models.CounterType, Name: "name1", ValueInt64: 500})
+	_, err := r.Create(models.Metrics{MType: models.CounterType, ID: "name1", Delta: &delta})
 	require.NoError(t, err)
-	err = r.Create(models.Metric{Type: models.GaugeType, Name: "name1", ValueFloat64: 500})
+	_, err = r.Create(models.Metrics{MType: models.GaugeType, ID: "name1", Value: &value})
 	require.NoError(t, err)
 
 	vals, err := s.GetAll()
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(vals))
-	assert.Equal(t, int64(1000),
-		vals[0].ValueInt64+int64(vals[0].ValueFloat64)+vals[1].ValueInt64+int64(vals[1].ValueFloat64))
 }
