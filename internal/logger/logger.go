@@ -31,3 +31,7 @@ func (l *Logger) InfoResponse(statusCode, length int) {
 		zap.Int("code", statusCode),
 		zap.Int("length", length))
 }
+
+func (l *Logger) Error(msg string) {
+	l.logger.Error(msg)
+}

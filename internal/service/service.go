@@ -11,7 +11,7 @@ import (
 )
 
 var ErrUnknownMetricType = errors.New("unknown metric type")
-var ErrIdIsEmpty = errors.New("metric ID is empty")
+var ErrIDIsEmpty = errors.New("metric ID is empty")
 
 type Service struct {
 	r repository.Storager
@@ -25,7 +25,7 @@ func New(s *storage.Storage) *Service {
 
 func (s *Service) Validate(m models.Metrics) error {
 	if m.ID == `` {
-		return ErrIdIsEmpty
+		return ErrIDIsEmpty
 	}
 	switch m.MType {
 	case models.GaugeType:

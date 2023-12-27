@@ -39,12 +39,13 @@ func New(s *service.Service, l *logger.Logger) *Handler {
 func (h *Handler) InitRoutes() *chi.Mux {
 	r := chi.NewRouter()
 
-	r.Use(h.WithLogging)
+	r.Use(h.GzipRequest)
+	r.Use(h.GzipResponse)
+	r.Use(h.Logging)
 
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", h.HandleUpdateByParam)
 	r.Get("/value/{metricType}/{metricName}", h.HandleGetByParam)
 	r.Get("/", h.HandleGetAll)
-
 	r.Post("/update", h.HandleUpdate)
 	r.Post("/update/", h.HandleUpdate)
 	r.Post("/value", h.HandleGet)
@@ -62,7 +63,7 @@ func (h *Handler) HandleUpdateByParam(res http.ResponseWriter, req *http.Request
 	m := models.Convert(metricType, metricName, metricValue)
 	err := h.service.Validate(m)
 	if err != nil {
-		if errors.Is(err, service.ErrIdIsEmpty) {
+		if errors.Is(err, service.ErrIDIsEmpty) {
 			res.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -96,6 +97,7 @@ func (h *Handler) HandleGetByParam(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) HandleGetAll(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set(headers.ContentType, `text/html`)
 	type Item struct {
 		Metrics []models.Metrics
 	}
@@ -130,9 +132,14 @@ func (h *Handler) HandleUpdate(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	buf, err := json.Marshal(*m)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	_, err = res.Write(buf)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	res.WriteHeader(http.StatusOK)
 }
@@ -154,9 +161,14 @@ func (h *Handler) HandleGet(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	buf, err := json.Marshal(*m)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	_, err = res.Write(buf)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	res.WriteHeader(http.StatusOK)
 }

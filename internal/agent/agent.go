@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -108,15 +109,31 @@ func (a *Agent) parse(v uint64) *float64 {
 }
 
 func (a *Agent) sendRequest(m models.Metrics) {
+	checkAndLog := func(err error) {
+		if err != nil {
+			log.Printf("error: %s", err.Error())
+		}
+	}
 	url := fmt.Sprintf("http://%s/update/", a.serverAddress)
-	buf, err := json.Marshal(m)
-	if err != nil {
-		log.Printf("error: %s", err.Error())
-	}
-	resp, err := a.client.R().SetHeader(headers.ContentType, `application/json`).SetBody(bytes.NewBuffer(buf)).Post(url)
-	if err != nil {
-		log.Printf("error: %s", err.Error())
-	}
+	requestBody, err := json.Marshal(m)
+	checkAndLog(err)
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+	defer func(gz *gzip.Writer) {
+		err := gz.Close()
+		checkAndLog(err)
+	}(gz)
+	_, err = gz.Write(requestBody)
+	checkAndLog(err)
+	err = gz.Close()
+	checkAndLog(err)
+	buf := b.Bytes()
+
+	resp, err := a.client.R().SetHeader(headers.ContentType, `application/json`).
+		SetHeader(headers.ContentEncoding, `gzip`).
+		SetHeader(headers.AcceptEncoding, `gzip`).
+		SetBody(buf).Post(url)
+	checkAndLog(err)
 	if resp.StatusCode() != http.StatusOK {
 		log.Printf("error: %s", err.Error())
 	}

@@ -26,7 +26,7 @@ func TestValidate(t *testing.T) {
 
 	err = s.Validate(models.Metrics{MType: models.CounterType, ID: ``, Delta: &delta})
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, ErrIdIsEmpty))
+	assert.True(t, errors.Is(err, ErrIDIsEmpty))
 
 	err = s.Validate(models.Metrics{MType: models.GaugeType, ID: `test`, Value: &value})
 	require.NoError(t, err)
