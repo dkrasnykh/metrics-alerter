@@ -3,8 +3,14 @@ package service
 import (
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"strconv"
+	"time"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/repository"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage"
@@ -14,13 +20,43 @@ var ErrUnknownMetricType = errors.New("unknown metric type")
 var ErrIDIsEmpty = errors.New("metric ID is empty")
 
 type Service struct {
-	r repository.Storager
+	r          repository.Storager
+	c          *config.ServerConfig
+	backupPath string
 }
 
-func New(s *storage.Storage) *Service {
+func New(s *storage.Storage, conf *config.ServerConfig) *Service {
 	return &Service{
 		r: s,
+		c: conf,
 	}
+}
+
+func (s *Service) InitBackup() error {
+	err := os.MkdirAll(s.c.FileStoragePath+"/", 0777)
+	if err != nil {
+		return err
+	}
+	s.backupPath = s.c.FileStoragePath + "/metrics.tmp"
+	if s.c.Restore {
+		err = s.Restore()
+		if err != nil {
+			log.Printf("error: %s", err.Error())
+		}
+	}
+	return nil
+}
+
+func (s *Service) Restore() error {
+	data, err := models.Load(s.backupPath)
+	if err != nil {
+		return err
+	}
+	err = s.r.Load(data)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *Service) Validate(m models.Metrics) error {
@@ -46,6 +82,15 @@ func (s *Service) Save(m models.Metrics) (models.Metrics, error) {
 	if m.MType == models.CounterType {
 		delta := s.calculateCounterValue(m.ID, *m.Delta)
 		m.Delta = &delta
+	}
+	if s.c != nil && s.c.FileStoragePath != "" {
+		time.AfterFunc(s.c.StoreInterval, func() {
+			ms, err := s.r.GetAll()
+			err = models.Save(s.backupPath, ms)
+			if err != nil {
+				logrus.Error(err)
+			}
+		})
 	}
 	return s.r.Update(m)
 }

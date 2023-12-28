@@ -78,6 +78,16 @@ func (s *Storage) Delete(mType, mName string) error {
 	return nil
 }
 
+func (s *Storage) Load(ms []models.Metrics) error {
+	for _, m := range ms {
+		_, err := s.Update(m)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func deltaOrDefault(p *int64) int64 {
 	if p == nil {
 		return 0
