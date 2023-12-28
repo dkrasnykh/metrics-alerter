@@ -8,8 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/repository"
@@ -85,11 +83,15 @@ func (s *Service) Save(m models.Metrics) (models.Metrics, error) {
 	}
 	if s.c != nil && s.c.FileStoragePath != "" {
 		time.AfterFunc(s.c.StoreInterval, func() {
-			ms, err := s.r.GetAll()
-			err = models.Save(s.backupPath, ms)
-			if err != nil {
-				logrus.Error(err)
+			checker := func(err error) {
+				if err != nil {
+					log.Printf("error: %s", err.Error())
+				}
 			}
+			ms, err := s.r.GetAll()
+			checker(err)
+			err = models.Save(s.backupPath, ms)
+			checker(err)
 		})
 	}
 	return s.r.Update(m)

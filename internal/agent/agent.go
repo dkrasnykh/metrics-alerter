@@ -109,31 +109,31 @@ func (a *Agent) parse(v uint64) *float64 {
 }
 
 func (a *Agent) sendRequest(m models.Metrics) {
-	checkAndLog := func(err error) {
+	checker := func(err error) {
 		if err != nil {
 			log.Printf("error: %s", err.Error())
 		}
 	}
 	url := fmt.Sprintf("http://%s/update/", a.serverAddress)
-	requestBody, err := json.Marshal(m)
-	checkAndLog(err)
+	body, err := json.Marshal(m)
+	checker(err)
 	var b bytes.Buffer
 	gz := gzip.NewWriter(&b)
 	defer func(gz *gzip.Writer) {
 		err := gz.Close()
-		checkAndLog(err)
+		checker(err)
 	}(gz)
-	_, err = gz.Write(requestBody)
-	checkAndLog(err)
+	_, err = gz.Write(body)
+	checker(err)
 	err = gz.Close()
-	checkAndLog(err)
+	checker(err)
 	buf := b.Bytes()
 
 	resp, err := a.client.R().SetHeader(headers.ContentType, `application/json`).
 		SetHeader(headers.ContentEncoding, `gzip`).
 		SetHeader(headers.AcceptEncoding, `gzip`).
 		SetBody(buf).Post(url)
-	checkAndLog(err)
+	checker(err)
 	if resp.StatusCode() != http.StatusOK {
 		log.Printf("error: %s", err.Error())
 	}
