@@ -3,11 +3,8 @@ package models
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"os"
 	"strconv"
 )
 
@@ -53,58 +50,4 @@ func ExtractBody(req *http.Request) (*Metrics, error) {
 		return nil, err
 	}
 	return &m, nil
-}
-
-type data struct {
-	Metrics []Metrics `json:"metrics"`
-}
-
-func Load(path string) ([]Metrics, error) {
-	_, err := os.Stat(path)
-	if err != nil {
-		log.Printf("error: %s", err.Error())
-		return nil, err
-	}
-	bytes, err := os.ReadFile(path)
-	if err != nil {
-		log.Printf("error: %s", err.Error())
-		return nil, fmt.Errorf("can't read backup file %s: %w", path, err)
-	}
-	if len(bytes) == 0 {
-		return nil, fmt.Errorf(`file %s is empty`, path)
-	}
-	v := data{}
-	err = json.Unmarshal(bytes, &v)
-	if err != nil {
-		log.Printf("error: %s", err.Error())
-		return nil, err
-	}
-
-	return v.Metrics, nil
-}
-
-func Save(path string, ms []Metrics) error {
-	file, err := os.Create(path)
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			log.Printf("error: %s", err.Error())
-		}
-	}(file)
-	if err != nil {
-		log.Printf("error: %s", err.Error())
-		return err
-	}
-	v := data{ms}
-	bytes, err := json.Marshal(&v)
-	if err != nil {
-		log.Printf("error: %s", err.Error())
-		return fmt.Errorf("can't unmarshal data for backup %w", err)
-	}
-	_, err = file.Write(bytes)
-	if err != nil {
-		log.Printf("error: %s", err.Error())
-		return fmt.Errorf("can't write file backup %w", err)
-	}
-	return nil
 }

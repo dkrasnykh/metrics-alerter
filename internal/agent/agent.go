@@ -5,18 +5,24 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/rand"
 	"net/http"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/go-http-utils/headers"
 	"github.com/go-resty/resty/v2"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
+
+type SyncMemStats struct {
+	v  *runtime.MemStats
+	mx sync.RWMutex
+}
 
 type Agent struct {
 	client         *resty.Client
@@ -26,7 +32,7 @@ type Agent struct {
 	pollTicker     *time.Ticker
 	reportTicker   *time.Ticker
 	pollCount      int64
-	memStats       *runtime.MemStats
+	memStats       SyncMemStats
 }
 
 func New(serverAddress string, pollInterval, reportInterval int) *Agent {
@@ -35,7 +41,10 @@ func New(serverAddress string, pollInterval, reportInterval int) *Agent {
 		serverAddress:  serverAddress,
 		pollInterval:   pollInterval,
 		reportInterval: reportInterval,
-		memStats:       &runtime.MemStats{},
+		memStats: SyncMemStats{
+			v:  &runtime.MemStats{},
+			mx: sync.RWMutex{},
+		},
 	}
 }
 
@@ -54,46 +63,54 @@ func (a *Agent) Run() {
 func (a *Agent) collectMemStats() {
 	for t := range a.pollTicker.C {
 		a.pollCount++
-		runtime.ReadMemStats(a.memStats)
-		log.Printf("metrics collection, timestamp: %s\n", t.String())
+
+		a.memStats.mx.Lock()
+		runtime.ReadMemStats(a.memStats.v)
+		a.memStats.mx.Unlock()
+
+		logger.Info(fmt.Sprintf("metrics collection, timestamp: %s\n", t.String()))
 	}
 }
 
 func (a *Agent) reportMemStats() {
 	for t := range a.reportTicker.C {
-		log.Printf("metrics reporting, timestamp: %s", t.String())
+		logger.Info(fmt.Sprintf("metrics reporting, timestamp: %s", t.String()))
 		f := rand.Float64()
+
+		a.memStats.mx.RLock()
 		metrics := []models.Metrics{
 			{ID: `PollCount`, MType: models.CounterType, Delta: &a.pollCount},
 			{ID: `RandomValue`, MType: models.GaugeType, Value: &f},
-			{ID: `Alloc`, MType: models.GaugeType, Value: a.parse(a.memStats.Alloc)},
-			{ID: `BuckHashSys`, MType: models.GaugeType, Value: a.parse(a.memStats.BuckHashSys)},
-			{ID: `Frees`, MType: models.GaugeType, Value: a.parse(a.memStats.Frees)},
-			{ID: `GCCPUFraction`, MType: models.GaugeType, Value: &a.memStats.GCCPUFraction},
-			{ID: `GCSys`, MType: models.GaugeType, Value: a.parse(a.memStats.GCSys)},
-			{ID: `HeapAlloc`, MType: models.GaugeType, Value: a.parse(a.memStats.HeapAlloc)},
-			{ID: `HeapIdle`, MType: models.GaugeType, Value: a.parse(a.memStats.HeapIdle)},
-			{ID: `HeapInuse`, MType: models.GaugeType, Value: a.parse(a.memStats.HeapInuse)},
-			{ID: `HeapObjects`, MType: models.GaugeType, Value: a.parse(a.memStats.HeapObjects)},
-			{ID: `HeapReleased`, MType: models.GaugeType, Value: a.parse(a.memStats.HeapReleased)},
-			{ID: `HeapSys`, MType: models.GaugeType, Value: a.parse(a.memStats.HeapSys)},
-			{ID: `LastGC`, MType: models.GaugeType, Value: a.parse(a.memStats.LastGC)},
-			{ID: `Lookups`, MType: models.GaugeType, Value: a.parse(a.memStats.Lookups)},
-			{ID: `MCacheInuse`, MType: models.GaugeType, Value: a.parse(a.memStats.MCacheInuse)},
-			{ID: `MCacheSys`, MType: models.GaugeType, Value: a.parse(a.memStats.MCacheSys)},
-			{ID: `MSpanInuse`, MType: models.GaugeType, Value: a.parse(a.memStats.MSpanInuse)},
-			{ID: `MSpanSys`, MType: models.GaugeType, Value: a.parse(a.memStats.MSpanSys)},
-			{ID: `Mallocs`, MType: models.GaugeType, Value: a.parse(a.memStats.Mallocs)},
-			{ID: `NextGC`, MType: models.GaugeType, Value: a.parse(a.memStats.NextGC)},
-			{ID: `NumForcedGC`, MType: models.GaugeType, Value: a.parse(uint64(a.memStats.NumForcedGC))},
-			{ID: `NumGC`, MType: models.GaugeType, Value: a.parse(uint64(a.memStats.NumGC))},
-			{ID: `OtherSys`, MType: models.GaugeType, Value: a.parse(a.memStats.OtherSys)},
-			{ID: `PauseTotalNs`, MType: models.GaugeType, Value: a.parse(a.memStats.PauseTotalNs)},
-			{ID: `StackInuse`, MType: models.GaugeType, Value: a.parse(a.memStats.StackInuse)},
-			{ID: `StackSys`, MType: models.GaugeType, Value: a.parse(a.memStats.StackSys)},
-			{ID: `Sys`, MType: models.GaugeType, Value: a.parse(a.memStats.Sys)},
-			{ID: `TotalAlloc`, MType: models.GaugeType, Value: a.parse(a.memStats.TotalAlloc)},
+			{ID: `Alloc`, MType: models.GaugeType, Value: a.parse(a.memStats.v.Alloc)},
+			{ID: `BuckHashSys`, MType: models.GaugeType, Value: a.parse(a.memStats.v.BuckHashSys)},
+			{ID: `Frees`, MType: models.GaugeType, Value: a.parse(a.memStats.v.Frees)},
+			{ID: `GCCPUFraction`, MType: models.GaugeType, Value: &a.memStats.v.GCCPUFraction},
+			{ID: `GCSys`, MType: models.GaugeType, Value: a.parse(a.memStats.v.GCSys)},
+			{ID: `HeapAlloc`, MType: models.GaugeType, Value: a.parse(a.memStats.v.HeapAlloc)},
+			{ID: `HeapIdle`, MType: models.GaugeType, Value: a.parse(a.memStats.v.HeapIdle)},
+			{ID: `HeapInuse`, MType: models.GaugeType, Value: a.parse(a.memStats.v.HeapInuse)},
+			{ID: `HeapObjects`, MType: models.GaugeType, Value: a.parse(a.memStats.v.HeapObjects)},
+			{ID: `HeapReleased`, MType: models.GaugeType, Value: a.parse(a.memStats.v.HeapReleased)},
+			{ID: `HeapSys`, MType: models.GaugeType, Value: a.parse(a.memStats.v.HeapSys)},
+			{ID: `LastGC`, MType: models.GaugeType, Value: a.parse(a.memStats.v.LastGC)},
+			{ID: `Lookups`, MType: models.GaugeType, Value: a.parse(a.memStats.v.Lookups)},
+			{ID: `MCacheInuse`, MType: models.GaugeType, Value: a.parse(a.memStats.v.MCacheInuse)},
+			{ID: `MCacheSys`, MType: models.GaugeType, Value: a.parse(a.memStats.v.MCacheSys)},
+			{ID: `MSpanInuse`, MType: models.GaugeType, Value: a.parse(a.memStats.v.MSpanInuse)},
+			{ID: `MSpanSys`, MType: models.GaugeType, Value: a.parse(a.memStats.v.MSpanSys)},
+			{ID: `Mallocs`, MType: models.GaugeType, Value: a.parse(a.memStats.v.Mallocs)},
+			{ID: `NextGC`, MType: models.GaugeType, Value: a.parse(a.memStats.v.NextGC)},
+			{ID: `NumForcedGC`, MType: models.GaugeType, Value: a.parse(uint64(a.memStats.v.NumForcedGC))},
+			{ID: `NumGC`, MType: models.GaugeType, Value: a.parse(uint64(a.memStats.v.NumGC))},
+			{ID: `OtherSys`, MType: models.GaugeType, Value: a.parse(a.memStats.v.OtherSys)},
+			{ID: `PauseTotalNs`, MType: models.GaugeType, Value: a.parse(a.memStats.v.PauseTotalNs)},
+			{ID: `StackInuse`, MType: models.GaugeType, Value: a.parse(a.memStats.v.StackInuse)},
+			{ID: `StackSys`, MType: models.GaugeType, Value: a.parse(a.memStats.v.StackSys)},
+			{ID: `Sys`, MType: models.GaugeType, Value: a.parse(a.memStats.v.Sys)},
+			{ID: `TotalAlloc`, MType: models.GaugeType, Value: a.parse(a.memStats.v.TotalAlloc)},
 		}
+		a.memStats.mx.RUnlock()
+
 		for _, m := range metrics {
 			go a.sendRequest(m)
 		}
@@ -103,7 +120,7 @@ func (a *Agent) reportMemStats() {
 func (a *Agent) parse(v uint64) *float64 {
 	f, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64)
 	if err != nil {
-		log.Printf("error: %s", err.Error())
+		logger.Error(err.Error())
 	}
 	return &f
 }
@@ -111,7 +128,7 @@ func (a *Agent) parse(v uint64) *float64 {
 func (a *Agent) sendRequest(m models.Metrics) {
 	checker := func(err error) {
 		if err != nil {
-			log.Printf("error: %s", err.Error())
+			logger.Error(err.Error())
 		}
 	}
 	url := fmt.Sprintf("http://%s/update/", a.serverAddress)
@@ -135,6 +152,6 @@ func (a *Agent) sendRequest(m models.Metrics) {
 		SetBody(buf).Post(url)
 	checker(err)
 	if resp.StatusCode() != http.StatusOK {
-		log.Printf("error: %s", err.Error())
+		logger.Error(err.Error())
 	}
 }

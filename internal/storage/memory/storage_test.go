@@ -1,4 +1,4 @@
-package storage
+package memory
 
 import (
 	"testing"
@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
 
@@ -17,14 +18,16 @@ var (
 )
 
 func TestCreate(t *testing.T) {
-	s := New()
+	_ = logger.InitLogger()
+	s := New("", 0)
 	m, err := s.Create(mCounter)
 	require.NoError(t, err)
 	assert.Equal(t, mCounter, m)
 }
 
 func TestGet(t *testing.T) {
-	s := New()
+	_ = logger.InitLogger()
+	s := New("", 0)
 	_, err := s.Create(mCounter)
 	require.NoError(t, err)
 
@@ -37,7 +40,8 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetAll(t *testing.T) {
-	s := New()
+	_ = logger.InitLogger()
+	s := New("", 0)
 	_, err := s.Create(mCounter)
 	require.NoError(t, err)
 	_, err = s.Create(mGauge)
@@ -49,7 +53,8 @@ func TestGetAll(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	s := New()
+	_ = logger.InitLogger()
+	s := New("", 0)
 	_, err := s.Create(mCounter)
 	require.NoError(t, err)
 	value, err := s.Get(models.CounterType, `name1`)
@@ -66,7 +71,8 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	s := New()
+	_ = logger.InitLogger()
+	s := New("", 0)
 	_, err := s.Create(mCounter)
 	require.NoError(t, err)
 

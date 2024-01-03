@@ -1,9 +1,11 @@
-package storage
+package memory
 
 import (
 	"fmt"
 	"sync"
+	"time"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
 
@@ -18,13 +20,18 @@ type Value struct {
 }
 
 type Storage struct {
-	storage map[Key]Value
-	mx      sync.RWMutex
+	storage           map[Key]Value
+	filePath          string
+	fileStoreInterval int
+	mx                sync.RWMutex
 }
 
-func New() *Storage {
-	return &Storage{storage: make(map[Key]Value),
-		mx: sync.RWMutex{},
+func New(path string, interval int) *Storage {
+	return &Storage{
+		storage:           make(map[Key]Value),
+		filePath:          InitDir(path),
+		fileStoreInterval: interval,
+		mx:                sync.RWMutex{},
 	}
 }
 
@@ -35,6 +42,9 @@ func (s *Storage) Create(m models.Metrics) (models.Metrics, error) {
 	k := Key{m.MType, m.ID}
 	v := Value{valueOrDefault(m.Value), deltaOrDefault(m.Delta)}
 	s.storage[k] = v
+
+	s.StoreIntoFile()
+
 	return m, nil
 }
 
@@ -78,14 +88,37 @@ func (s *Storage) Delete(mType, mName string) error {
 	return nil
 }
 
-func (s *Storage) Load(ms []models.Metrics) error {
-	for _, m := range ms {
-		_, err := s.Update(m)
+func (s *Storage) Restore() {
+	if s.filePath == "" {
+		return
+	}
+	data, err := Load(s.filePath)
+	if err != nil {
+		logger.Error(err.Error())
+	}
+	for _, m := range data {
+		_, err = s.Update(m)
 		if err != nil {
-			return err
+			logger.Error(err.Error())
 		}
 	}
-	return nil
+}
+
+func (s *Storage) StoreIntoFile() {
+	if s.filePath != "" {
+		timeDuration := time.Duration(s.fileStoreInterval) * time.Second
+		time.AfterFunc(timeDuration, func() {
+			checker := func(err error) {
+				if err != nil {
+					logger.Error(err.Error())
+				}
+			}
+			ms, err := s.GetAll()
+			checker(err)
+			err = Save(s.filePath, ms)
+			checker(err)
+		})
+	}
 }
 
 func deltaOrDefault(p *int64) int64 {

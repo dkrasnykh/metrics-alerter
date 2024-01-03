@@ -9,7 +9,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-http-utils/headers"
 
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
 )
@@ -28,12 +27,10 @@ var T *template.Template
 
 type Handler struct {
 	service *service.Service
-	logger  *logger.Logger
 }
 
-func New(s *service.Service, l *logger.Logger) *Handler {
-	return &Handler{service: s,
-		logger: l}
+func New(s *service.Service) *Handler {
+	return &Handler{service: s}
 }
 
 func (h *Handler) InitRoutes() *chi.Mux {

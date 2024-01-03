@@ -1,4 +1,4 @@
-package repository
+package service
 
 import "github.com/dkrasnykh/metrics-alerter/internal/models"
 
@@ -8,5 +8,4 @@ type Storager interface {
 	GetAll() ([]models.Metrics, error)
 	Update(metric models.Metrics) (models.Metrics, error)
 	Delete(mType, name string) error
-	Load(ms []models.Metrics) error
 }

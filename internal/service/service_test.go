@@ -2,20 +2,20 @@ package service
 
 import (
 	"errors"
+	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dkrasnykh/metrics-alerter/internal/config"
+	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
-	"github.com/dkrasnykh/metrics-alerter/internal/storage"
 )
 
 func TestValidate(t *testing.T) {
-	r := storage.New()
-	c := config.ServerConfig{FileStoragePath: ``}
-	s := New(r, &c)
+	_ = logger.InitLogger()
+	r := memory.New("", 0)
+	s := New(r)
 
 	delta := int64(10)
 	value := float64(100)
@@ -42,9 +42,9 @@ func TestValidate(t *testing.T) {
 }
 
 func TestSave(t *testing.T) {
-	r := storage.New()
-	c := config.ServerConfig{FileStoragePath: ``}
-	s := New(r, &c)
+	_ = logger.InitLogger()
+	r := memory.New("", 0)
+	s := New(r)
 	value := float64(100)
 	m := models.Metrics{MType: models.GaugeType, ID: `test`, Value: &value}
 	saved, err := s.Save(m)
@@ -53,9 +53,9 @@ func TestSave(t *testing.T) {
 }
 
 func TestCalculateCounterValue(t *testing.T) {
-	r := storage.New()
-	c := config.ServerConfig{FileStoragePath: ``}
-	s := New(r, &c)
+	_ = logger.InitLogger()
+	r := memory.New("", 0)
+	s := New(r)
 
 	value := s.calculateCounterValue(`name1`, 250)
 	assert.Equal(t, int64(250), value)
@@ -68,9 +68,9 @@ func TestCalculateCounterValue(t *testing.T) {
 }
 
 func TestGetCounterMetricValue(t *testing.T) {
-	r := storage.New()
-	c := config.ServerConfig{FileStoragePath: ``}
-	s := New(r, &c)
+	_ = logger.InitLogger()
+	r := memory.New("", 0)
+	s := New(r)
 
 	_, err := s.GetMetricValue(models.CounterType, "test")
 	require.Error(t, err)
@@ -84,9 +84,9 @@ func TestGetCounterMetricValue(t *testing.T) {
 }
 
 func TestGetAll(t *testing.T) {
-	r := storage.New()
-	c := config.ServerConfig{FileStoragePath: ``}
-	s := New(r, &c)
+	_ = logger.InitLogger()
+	r := memory.New("", 0)
+	s := New(r)
 	delta := int64(500)
 	value := float64(500)
 

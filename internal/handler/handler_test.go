@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,19 +12,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
-	"github.com/dkrasnykh/metrics-alerter/internal/storage"
 )
 
 func TestHandleUpdateByParam(t *testing.T) {
-	r := storage.New()
-	c := config.ServerConfig{FileStoragePath: ``}
-	v := service.New(r, &c)
-	l, _ := logger.New()
-	h := New(v, l)
+	_ = logger.InitLogger()
+	r := memory.New("", 0)
+	v := service.New(r)
+	h := New(v)
 	testServ := httptest.NewServer(h.InitRoutes())
 	defer testServ.Close()
 
@@ -91,11 +89,10 @@ func TestHandleUpdateByParam(t *testing.T) {
 }
 
 func TestHandleGetByParam(t *testing.T) {
-	r := storage.New()
-	c := config.ServerConfig{FileStoragePath: ``}
-	v := service.New(r, &c)
-	l, _ := logger.New()
-	h := New(v, l)
+	_ = logger.InitLogger()
+	r := memory.New("", 0)
+	v := service.New(r)
+	h := New(v)
 	testServ := httptest.NewServer(h.InitRoutes())
 	defer testServ.Close()
 	delta := int64(123)

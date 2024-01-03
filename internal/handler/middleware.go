@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 )
 
 type CompressWriter struct {
@@ -22,7 +24,7 @@ func (h *Handler) Logging(next http.Handler) http.Handler {
 		timestamp := time.Now()
 		next.ServeHTTP(w, r)
 		duration := time.Since(timestamp)
-		h.logger.InfoRequest(r.Method, r.RequestURI, duration)
+		logger.InfoRequest(r.Method, r.RequestURI, duration)
 	})
 }
 
@@ -36,14 +38,14 @@ func (h *Handler) GzipResponse(next http.Handler) http.Handler {
 		defer func(oldBody io.ReadCloser) {
 			err := oldBody.Close()
 			if err != nil {
-				h.logger.Error(err.Error())
+				logger.Error(err.Error())
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 		}(oldBody)
 		zr, err := gzip.NewReader(oldBody)
 		if err != nil {
-			h.logger.Error(err.Error())
+			logger.Error(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -60,14 +62,14 @@ func (h *Handler) GzipRequest(next http.Handler) http.Handler {
 		}
 		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
 		if err != nil {
-			h.logger.Error(err.Error())
+			logger.Error(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		defer func(gz *gzip.Writer) {
 			err := gz.Close()
 			if err != nil {
-				h.logger.Error(err.Error())
+				logger.Error(err.Error())
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}

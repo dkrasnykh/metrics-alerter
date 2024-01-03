@@ -1,20 +1,23 @@
 package main
 
 import (
-	"log"
-
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
+	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/server"
 )
 
 func main() {
+	err := logger.InitLogger()
+	if err != nil {
+		panic(err.Error())
+	}
 	cfg, err := config.NewServerConfig()
 	if err != nil {
-		log.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 	s := server.New(cfg)
 	err = s.Run()
 	if err != nil {
-		log.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 }

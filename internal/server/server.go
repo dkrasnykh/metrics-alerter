@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 	"html/template"
 	"net/http"
 
@@ -8,9 +9,7 @@ import (
 
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/handler"
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
-	"github.com/dkrasnykh/metrics-alerter/internal/storage"
 )
 
 type Server struct {
@@ -26,26 +25,23 @@ func New(conf *config.ServerConfig) *Server {
 }
 
 func (s *Server) Run() error {
-	r := storage.New()
-	v := service.New(r, s.c)
+	r := memory.New(s.c.FileStoragePath, s.c.StoreInterval)
+	if s.c.Restore {
+		r.Restore()
+	}
+
 	var err error
-	err = v.InitBackup()
+	v := service.New(r)
 	if err != nil {
 		return err
 	}
+
 	handler.T, err = template.New("webpage").Parse(handler.Tpl)
 	if err != nil {
 		return err
 	}
-	l, err := logger.New()
-	if err != nil {
-		return err
-	}
-	h := handler.New(v, l)
+	h := handler.New(v)
 
 	err = http.ListenAndServe(s.c.Address, h.InitRoutes())
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }

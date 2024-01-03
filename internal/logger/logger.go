@@ -6,32 +6,39 @@ import (
 	"go.uber.org/zap"
 )
 
-type Logger struct {
-	logger *zap.Logger
-}
+var logger *zap.Logger
 
-func New() (*Logger, error) {
-	c := zap.NewProductionConfig()
-	zapl, err := c.Build()
-	if err != nil {
-		return nil, err
+func InitLogger() error {
+	if logger != nil {
+		return nil
 	}
-	return &Logger{zapl}, err
+	c := zap.NewProductionConfig()
+	var err error
+	logger, err = c.Build()
+	return err
 }
 
-func (l *Logger) InfoRequest(method, uri string, duration time.Duration) {
-	l.logger.Info("request",
+func InfoRequest(method, uri string, duration time.Duration) {
+	logger.Info("request",
 		zap.String("method", method),
 		zap.String("URI", uri),
 		zap.Duration("duration", duration))
 }
 
-func (l *Logger) InfoResponse(statusCode, length int) {
-	l.logger.Info("response",
+func InfoResponse(statusCode, length int) {
+	logger.Info("response",
 		zap.Int("code", statusCode),
 		zap.Int("length", length))
 }
 
-func (l *Logger) Error(msg string) {
-	l.logger.Error(msg)
+func Info(msg string) {
+	logger.Info(msg)
+}
+
+func Error(msg string) {
+	logger.Error(msg)
+}
+
+func Fatal(msg string) {
+	logger.Fatal(msg)
 }
