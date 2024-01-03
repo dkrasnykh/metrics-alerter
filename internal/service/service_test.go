@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
+	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 )
 
 func TestValidate(t *testing.T) {

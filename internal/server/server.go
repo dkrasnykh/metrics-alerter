@@ -1,7 +1,6 @@
 package server
 
 import (
-	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 	"html/template"
 	"net/http"
 
@@ -10,6 +9,7 @@ import (
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/handler"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
+	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 )
 
 type Server struct {
@@ -29,13 +29,9 @@ func (s *Server) Run() error {
 	if s.c.Restore {
 		r.Restore()
 	}
+	v := service.New(r)
 
 	var err error
-	v := service.New(r)
-	if err != nil {
-		return err
-	}
-
 	handler.T, err = template.New("webpage").Parse(handler.Tpl)
 	if err != nil {
 		return err

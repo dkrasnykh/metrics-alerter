@@ -3,10 +3,10 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 	"strconv"
 
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
+	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 )
 
 var ErrUnknownMetricType = errors.New("unknown metric type")

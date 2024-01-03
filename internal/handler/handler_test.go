@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +14,7 @@ import (
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
+	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 )
 
 func TestHandleUpdateByParam(t *testing.T) {
