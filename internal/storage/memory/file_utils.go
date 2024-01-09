@@ -38,16 +38,16 @@ func Load(path string) ([]models.Metrics, error) {
 func Save(path string, ms []models.Metrics) error {
 	file, err := os.Create(path)
 
+	if err != nil {
+		return err
+	}
+
 	defer func(file *os.File) {
 		err := file.Close()
 		if err != nil {
 			logger.Error(err.Error())
 		}
 	}(file)
-
-	if err != nil {
-		return err
-	}
 
 	v := data{ms}
 	bytes, err := json.Marshal(&v)

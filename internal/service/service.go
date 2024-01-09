@@ -50,9 +50,10 @@ func (s *Service) Save(m models.Metrics) (models.Metrics, error) {
 
 func (s *Service) calculateCounterValue(name string, value int64) int64 {
 	metric, err := s.r.Get(models.CounterType, name)
-	if err == nil {
-		value += *metric.Delta
+	if err != nil || metric.Delta == nil {
+		return value
 	}
+	value += *metric.Delta
 	return value
 }
 

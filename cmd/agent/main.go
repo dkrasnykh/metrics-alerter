@@ -9,7 +9,7 @@ import (
 func main() {
 	err := logger.InitLogger()
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 	cfg, err := config.NewAgentConfig()
 	if err != nil {
