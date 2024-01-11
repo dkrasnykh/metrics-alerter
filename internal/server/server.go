@@ -9,6 +9,7 @@ import (
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/handler"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
+	"github.com/dkrasnykh/metrics-alerter/internal/storage/database"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 )
 
@@ -30,7 +31,7 @@ func (s *Server) Run() error {
 		r.Restore()
 	}
 	v := service.New(r)
-
+	database.Url = s.c.DatabaseDSN
 	var err error
 	handler.T, err = template.New("webpage").Parse(handler.Tpl)
 	if err != nil {

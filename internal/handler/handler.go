@@ -11,6 +11,7 @@ import (
 
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
+	"github.com/dkrasnykh/metrics-alerter/internal/storage/database"
 )
 
 const (
@@ -47,6 +48,7 @@ func (h *Handler) InitRoutes() *chi.Mux {
 	r.Post("/update/", h.HandleUpdate)
 	r.Post("/value", h.HandleGet)
 	r.Post("/value/", h.HandleGet)
+	r.Get("/ping", h.HandleGetPing)
 
 	return r
 }
@@ -168,4 +170,11 @@ func (h *Handler) HandleGet(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	res.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) HandleGetPing(res http.ResponseWriter, req *http.Request) {
+	err := database.Ping()
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+	}
 }
