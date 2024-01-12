@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
-	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 )
 
 var ErrUnknownMetricType = errors.New("unknown metric type")
@@ -16,7 +15,7 @@ type Service struct {
 	r Storager
 }
 
-func New(s *memory.Storage) *Service {
+func New(s Storager) *Service {
 	return &Service{r: s}
 }
 
@@ -45,7 +44,7 @@ func (s *Service) Save(m models.Metrics) (models.Metrics, error) {
 		m.Delta = &delta
 	}
 
-	return s.r.Update(m)
+	return s.r.Create(m)
 }
 
 func (s *Service) calculateCounterValue(name string, value int64) int64 {

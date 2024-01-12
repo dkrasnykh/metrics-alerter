@@ -26,12 +26,20 @@ func New(conf *config.ServerConfig) *Server {
 }
 
 func (s *Server) Run() error {
-	r := memory.New(s.c.FileStoragePath, s.c.StoreInterval)
-	if s.c.Restore {
-		r.Restore()
+	var v *service.Service
+	if s.c.DatabaseDSN != `` {
+		r, err := database.New(s.c.DatabaseDSN)
+		if err != nil {
+			return err
+		}
+		v = service.New(r)
+	} else {
+		r := memory.New(s.c.FileStoragePath, s.c.StoreInterval)
+		if s.c.Restore {
+			r.Restore()
+		}
+		v = service.New(r)
 	}
-	v := service.New(r)
-	database.Url = s.c.DatabaseDSN
 	var err error
 	handler.T, err = template.New("webpage").Parse(handler.Tpl)
 	if err != nil {

@@ -9,31 +9,30 @@ import (
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 )
 
-var Url string
+var URL string
 
 func NewPostrgresDB() (*sqlx.DB, error) {
-	db, err := sqlx.Open("pgx", Url)
+	db, err := sqlx.Open("pgx", URL)
 	if err != nil {
 		return nil, err
 	}
 	return db, nil
 }
 
-// test connectivity
 func Ping() error {
 	db, err := NewPostrgresDB()
 	if err != nil {
-		logger.Error(fmt.Sprintf(`error database %s connection`, Url))
+		logger.Error(fmt.Sprintf(`error database %s connection`, URL))
 		return err
 	}
 	err = db.Ping()
 	if err != nil {
-		logger.Error(fmt.Sprintf(`error database %s connection`, Url))
+		logger.Error(fmt.Sprintf(`error ping database %s`, URL))
 		return err
 	}
 	err = db.Close()
 	if err != nil {
-		logger.Error(fmt.Sprintf(`error closing connection %s`, Url))
+		logger.Error(fmt.Sprintf(`error closing connection %s`, URL))
 		return err
 	}
 	return nil
