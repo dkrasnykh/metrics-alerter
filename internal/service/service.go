@@ -76,3 +76,28 @@ func (s *Service) GetAll() ([]models.Metrics, error) {
 func (s *Service) Get(mType, mName string) (models.Metrics, error) {
 	return s.r.Get(mType, mName)
 }
+
+func (s *Service) Load(metrics []models.Metrics) error {
+	counters := map[string]int64{}
+	gauges := map[string]float64{}
+	for i := 0; i < len(metrics); i++ {
+		m := metrics[i]
+		switch m.MType {
+		case models.CounterType:
+			counters[m.ID] += *m.Delta
+		case models.GaugeType:
+			gauges[m.ID] = *m.Value
+		}
+	}
+	validated := []models.Metrics{}
+	for name, value := range counters {
+		delta := s.calculateCounterValue(name, value)
+		m := models.Metrics{MType: models.CounterType, ID: name, Delta: &delta}
+		validated = append(validated, m)
+	}
+	for name, value := range gauges {
+		m := models.Metrics{MType: models.GaugeType, ID: name, Value: &value}
+		validated = append(validated, m)
+	}
+	return s.r.Load(validated)
+}

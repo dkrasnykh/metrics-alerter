@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"html/template"
+	"io"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -44,11 +45,10 @@ func (h *Handler) InitRoutes() *chi.Mux {
 	r.Post("/update/{metricType}/{metricName}/{metricValue}", h.HandleUpdateByParam)
 	r.Get("/value/{metricType}/{metricName}", h.HandleGetByParam)
 	r.Get("/", h.HandleGetAll)
-	r.Post("/update", h.HandleUpdate)
 	r.Post("/update/", h.HandleUpdate)
-	r.Post("/value", h.HandleGet)
 	r.Post("/value/", h.HandleGet)
 	r.Get("/ping", h.HandleGetPing)
+	r.Post("/updates/", h.HandleUpdates)
 
 	return r
 }
@@ -174,6 +174,31 @@ func (h *Handler) HandleGet(res http.ResponseWriter, req *http.Request) {
 
 func (h *Handler) HandleGetPing(res http.ResponseWriter, req *http.Request) {
 	err := database.Ping()
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
+func (h *Handler) HandleUpdates(res http.ResponseWriter, req *http.Request) {
+	bytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	metrics := []models.Metrics{}
+	err = json.Unmarshal(bytes, &metrics)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	for _, m := range metrics {
+		err = h.service.Validate(m)
+		if err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	}
+	err = h.service.Load(metrics)
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 	}

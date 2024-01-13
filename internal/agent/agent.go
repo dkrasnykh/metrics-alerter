@@ -111,9 +111,7 @@ func (a *Agent) reportMemStats() {
 		}
 		a.memStats.mx.RUnlock()
 
-		for _, m := range metrics {
-			go a.sendRequest(m)
-		}
+		go a.sendBatchRequest(metrics)
 	}
 }
 
@@ -126,32 +124,48 @@ func (a *Agent) parse(v uint64) *float64 {
 }
 
 func (a *Agent) sendRequest(m models.Metrics) {
-	checker := func(err error) {
-		if err != nil {
-			logger.Error(err.Error())
-		}
-	}
 	url := fmt.Sprintf("http://%s/update/", a.serverAddress)
-	body, err := json.Marshal(m)
-	checker(err)
-	var b bytes.Buffer
-	gz := gzip.NewWriter(&b)
-	defer func(gz *gzip.Writer) {
-		err := gz.Close()
-		checker(err)
-	}(gz)
-	_, err = gz.Write(body)
-	checker(err)
-	err = gz.Close()
-	checker(err)
-	buf := b.Bytes()
-
+	buf := gzipData(m)
 	resp, err := a.client.R().SetHeader(headers.ContentType, `application/json`).
 		SetHeader(headers.ContentEncoding, `gzip`).
 		SetHeader(headers.AcceptEncoding, `gzip`).
 		SetBody(buf).Post(url)
-	checker(err)
-	if resp.StatusCode() != http.StatusOK {
+	if err != nil {
 		logger.Error(err.Error())
 	}
+	if resp.StatusCode() != http.StatusOK {
+		logger.Error(fmt.Sprintf(`unexpected status code %d`, resp.StatusCode()))
+	}
+}
+
+func (a *Agent) sendBatchRequest(metrics []models.Metrics) {
+	buf := gzipData(metrics)
+	resp, err := a.client.R().SetHeader(headers.ContentType, `application/json`).
+		SetHeader(headers.ContentEncoding, `gzip`).
+		SetHeader(headers.AcceptEncoding, `gzip`).
+		SetBody(buf).Post(fmt.Sprintf("http://%s/updates/", a.serverAddress))
+	if err != nil {
+		logger.Error(err.Error())
+	}
+	if resp.StatusCode() != http.StatusOK {
+		logger.Error(fmt.Sprintf(`unexpected status code %d`, resp.StatusCode()))
+	}
+}
+
+func gzipData(any interface{}) []byte {
+	logError := func(err error) {
+		if err != nil {
+			logger.Error(err.Error())
+		}
+	}
+	body, err := json.Marshal(any)
+	logError(err)
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+	_, err = gz.Write(body)
+	logError(err)
+	err = gz.Close()
+	logError(err)
+	buf := b.Bytes()
+	return buf
 }

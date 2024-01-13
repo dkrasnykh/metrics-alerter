@@ -88,6 +88,18 @@ func (s *Storage) Delete(mType, mName string) error {
 	return nil
 }
 
+func (s *Storage) Load(metrics []models.Metrics) error {
+	s.mx.Lock()
+	defer s.mx.Unlock()
+
+	for _, m := range metrics {
+		key := Key{MType: m.MType, ID: m.ID}
+		value := Value{Value: valueOrDefault(m.Value), Delta: deltaOrDefault(m.Delta)}
+		s.storage[key] = value
+	}
+	return nil
+}
+
 func (s *Storage) Restore() {
 	if s.filePath == "" {
 		return
