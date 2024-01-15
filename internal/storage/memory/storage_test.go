@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,69 +20,57 @@ var (
 
 func TestCreate(t *testing.T) {
 	_ = logger.InitLogger()
+	ctx := context.Background()
 	s := New("", 0)
-	m, err := s.Create(mCounter)
+	m, err := s.Create(ctx, mCounter)
 	require.NoError(t, err)
 	assert.Equal(t, mCounter, m)
 }
 
 func TestGet(t *testing.T) {
 	_ = logger.InitLogger()
+	ctx := context.Background()
 	s := New("", 0)
-	_, err := s.Create(mCounter)
+	_, err := s.Create(ctx, mCounter)
 	require.NoError(t, err)
 
-	value, err := s.Get(models.CounterType, "name1")
+	value, err := s.Get(ctx, models.CounterType, "name1")
 	require.NoError(t, err)
 	assert.Equal(t, mCounter, value)
 
-	_, err = s.Get(models.CounterType, "name2")
+	_, err = s.Get(ctx, models.CounterType, "name2")
 	require.Error(t, err)
 }
 
 func TestGetAll(t *testing.T) {
 	_ = logger.InitLogger()
+	ctx := context.Background()
 	s := New("", 0)
-	_, err := s.Create(mCounter)
+	_, err := s.Create(ctx, mCounter)
 	require.NoError(t, err)
-	_, err = s.Create(mGauge)
+	_, err = s.Create(ctx, mGauge)
 	require.NoError(t, err)
 
-	vals, err := s.GetAll()
+	vals, err := s.GetAll(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(vals))
 }
 
 func TestUpdate(t *testing.T) {
 	_ = logger.InitLogger()
+	ctx := context.Background()
 	s := New("", 0)
-	_, err := s.Create(mCounter)
+	_, err := s.Create(ctx, mCounter)
 	require.NoError(t, err)
-	value, err := s.Get(models.CounterType, `name1`)
+	value, err := s.Get(ctx, models.CounterType, `name1`)
 	require.NoError(t, err)
 	assert.Equal(t, *mCounter.Delta, *value.Delta)
 
 	delta := int64(450)
 	updated := models.Metrics{MType: models.CounterType, ID: `name1`, Delta: &delta}
-	_, err = s.Update(updated)
+	_, err = s.Create(ctx, updated)
 	require.NoError(t, err)
-	value, err = s.Get(models.CounterType, `name1`)
+	value, err = s.Get(ctx, models.CounterType, `name1`)
 	require.NoError(t, err)
 	assert.Equal(t, delta, *value.Delta)
-}
-
-func TestDelete(t *testing.T) {
-	_ = logger.InitLogger()
-	s := New("", 0)
-	_, err := s.Create(mCounter)
-	require.NoError(t, err)
-
-	_, err = s.Get(mCounter.MType, mCounter.ID)
-	require.NoError(t, err)
-
-	err = s.Delete(mCounter.MType, mCounter.ID)
-	require.NoError(t, err)
-
-	_, err = s.Get(mCounter.MType, mCounter.ID)
-	require.Error(t, err)
 }

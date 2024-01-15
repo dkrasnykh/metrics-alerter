@@ -70,10 +70,10 @@ func (s *Storage) Create(ctx context.Context, metric models.Metrics) (models.Met
 
 			switch metric.MType {
 			case models.GaugeType:
-				_, err = tx.ExecContext(context.Background(), `INSERT INTO metrics (name, type, value) VALUES ($1, $2, $3);`,
+				_, err = tx.ExecContext(ctx, `INSERT INTO metrics (name, type, value) VALUES ($1, $2, $3);`,
 					metric.ID, metric.MType, *metric.Value)
 			case models.CounterType:
-				_, err = tx.ExecContext(context.Background(), `INSERT INTO metrics (name, type, delta) VALUES ($1, $2, $3);`,
+				_, err = tx.ExecContext(ctx, `INSERT INTO metrics (name, type, delta) VALUES ($1, $2, $3);`,
 					metric.ID, metric.MType, *metric.Delta)
 			}
 			return err

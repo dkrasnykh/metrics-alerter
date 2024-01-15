@@ -34,5 +34,5 @@ func DelayType(n uint, _ error, config *retry.Config) time.Duration {
 }
 
 func OnRetry(n uint, err error) {
-	logger.Error(fmt.Sprintf(`%d %w`, n, err))
+	logger.Error(fmt.Sprintf(`%d %s`, n, err.Error()))
 }
