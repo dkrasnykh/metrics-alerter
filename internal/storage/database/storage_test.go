@@ -13,7 +13,7 @@ import (
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
 
-var TestErr = errors.New("database access error")
+var ErrTest = errors.New("database access error")
 
 func TestCreate(t *testing.T) {
 	_ = logger.InitLogger()
@@ -63,7 +63,7 @@ func TestCreate(t *testing.T) {
 			mock: func(args args) {
 				mock.ExpectBegin()
 				mock.ExpectExec("INSERT INTO metrics").WithArgs(args.m.ID, args.m.MType, *args.m.Value).
-					WillReturnError(TestErr)
+					WillReturnError(ErrTest)
 				mock.ExpectRollback()
 			},
 			input:   args{ctx: ctx, m: models.Metrics{MType: models.GaugeType, ID: "name1", Value: &value}},
@@ -102,7 +102,7 @@ func TestGet(t *testing.T) {
 	type args struct {
 		ctx   context.Context
 		mType string
-		mId   string
+		mID   string
 		delta int64
 		value float64
 	}
@@ -121,12 +121,12 @@ func TestGet(t *testing.T) {
 			mock: func(a args) {
 				rows := sqlmock.NewRows([]string{"delta", "value"}).AddRow(a.delta, nil)
 				mock.ExpectQuery("select (.+) from metrics where (.+) ORDER BY time DESC LIMIT 1;").
-					WithArgs(a.mId, a.mType).WillReturnRows(rows)
+					WithArgs(a.mID, a.mType).WillReturnRows(rows)
 			},
 			input: args{
 				ctx:   ctx,
 				mType: models.CounterType,
-				mId:   "name1",
+				mID:   "name1",
 				delta: int64(500),
 			},
 			want: models.Metrics{MType: models.CounterType, ID: "name1", Delta: &delta},
@@ -136,12 +136,12 @@ func TestGet(t *testing.T) {
 			mock: func(a args) {
 				rows := sqlmock.NewRows([]string{"delta", "value"}).AddRow(nil, a.value)
 				mock.ExpectQuery("select (.+) from metrics where (.+) ORDER BY time DESC LIMIT 1;").
-					WithArgs(a.mId, a.mType).WillReturnRows(rows)
+					WithArgs(a.mID, a.mType).WillReturnRows(rows)
 			},
 			input: args{
 				ctx:   ctx,
 				mType: models.GaugeType,
-				mId:   "name1",
+				mID:   "name1",
 				value: float64(500),
 			},
 			want: models.Metrics{MType: models.GaugeType, ID: "name1", Value: &value},
@@ -150,12 +150,12 @@ func TestGet(t *testing.T) {
 			name: "selection error",
 			mock: func(a args) {
 				mock.ExpectQuery("select (.+) from metrics where (.+) ORDER BY time DESC LIMIT 1;").
-					WithArgs(a.mId, a.mType).WillReturnError(TestErr)
+					WithArgs(a.mID, a.mType).WillReturnError(ErrTest)
 			},
 			input: args{
 				ctx:   ctx,
 				mType: models.GaugeType,
-				mId:   "name1",
+				mID:   "name1",
 				value: float64(500),
 			},
 			wantErr: true,
@@ -166,7 +166,7 @@ func TestGet(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.mock(tt.input)
 
-			got, err := r.Get(tt.input.ctx, tt.input.mType, tt.input.mId)
+			got, err := r.Get(tt.input.ctx, tt.input.mType, tt.input.mID)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -218,7 +218,7 @@ func TestGetAll(t *testing.T) {
 			name: "selection error",
 			mock: func() {
 				mock.ExpectQuery(`SELECT (.+) FROM (.+) AS t1 LEFT JOIN metrics AS m ON (.+);`).
-					WithoutArgs().WillReturnError(TestErr)
+					WithoutArgs().WillReturnError(ErrTest)
 			},
 			input:   ctx,
 			wantErr: true,
@@ -281,7 +281,7 @@ func TestLoad(t *testing.T) {
 			mock: func() {
 				mock.ExpectBegin()
 				mock.ExpectExec("INSERT INTO metrics").WithArgs("name1", models.CounterType, delta).
-					WillReturnError(TestErr)
+					WillReturnError(ErrTest)
 				mock.ExpectRollback()
 			},
 			input: ctx,

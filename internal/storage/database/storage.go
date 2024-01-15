@@ -130,6 +130,9 @@ func (s *Storage) GetAll(ctx context.Context) ([]models.Metrics, error) {
 				`SELECT t1.name, t1.type, m.delta, m.value FROM 
 				(select name, type, MAX(time) as time from metrics group by name, type) AS t1 
 				LEFT JOIN metrics AS m ON t1.name = m.name AND t1.type=m.type AND t1.time = m.time;`)
+			if rows.Err() != nil {
+				logger.Error(rows.Err().Error())
+			}
 			return err
 		},
 		retry.Attempts(models.Attempts),
