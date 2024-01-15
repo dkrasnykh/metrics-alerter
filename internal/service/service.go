@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -38,17 +39,17 @@ func (s *Service) Validate(m models.Metrics) error {
 	return nil
 }
 
-func (s *Service) Save(m models.Metrics) (models.Metrics, error) {
+func (s *Service) Save(ctx context.Context, m models.Metrics) (models.Metrics, error) {
 	if m.MType == models.CounterType {
-		delta := s.calculateCounterValue(m.ID, *m.Delta)
+		delta := s.calculateCounterValue(ctx, m.ID, *m.Delta)
 		m.Delta = &delta
 	}
 
-	return s.r.Create(m)
+	return s.r.Create(ctx, m)
 }
 
-func (s *Service) calculateCounterValue(name string, value int64) int64 {
-	metric, err := s.r.Get(models.CounterType, name)
+func (s *Service) calculateCounterValue(ctx context.Context, name string, value int64) int64 {
+	metric, err := s.r.Get(ctx, models.CounterType, name)
 	if err != nil || metric.Delta == nil {
 		return value
 	}
@@ -56,8 +57,8 @@ func (s *Service) calculateCounterValue(name string, value int64) int64 {
 	return value
 }
 
-func (s *Service) GetMetricValue(mType, mName string) (string, error) {
-	m, err := s.r.Get(mType, mName)
+func (s *Service) GetMetricValue(ctx context.Context, mType, mName string) (string, error) {
+	m, err := s.r.Get(ctx, mType, mName)
 	if err != nil {
 		return "", err
 	}
@@ -69,15 +70,15 @@ func (s *Service) GetMetricValue(mType, mName string) (string, error) {
 	}
 }
 
-func (s *Service) GetAll() ([]models.Metrics, error) {
-	return s.r.GetAll()
+func (s *Service) GetAll(ctx context.Context) ([]models.Metrics, error) {
+	return s.r.GetAll(ctx)
 }
 
-func (s *Service) Get(mType, mName string) (models.Metrics, error) {
-	return s.r.Get(mType, mName)
+func (s *Service) Get(ctx context.Context, mType, mName string) (models.Metrics, error) {
+	return s.r.Get(ctx, mType, mName)
 }
 
-func (s *Service) Load(metrics []models.Metrics) error {
+func (s *Service) Load(ctx context.Context, metrics []models.Metrics) error {
 	counters := map[string]int64{}
 	gauges := map[string]float64{}
 	for i := 0; i < len(metrics); i++ {
@@ -89,15 +90,15 @@ func (s *Service) Load(metrics []models.Metrics) error {
 			gauges[m.ID] = *m.Value
 		}
 	}
-	validated := []models.Metrics{}
+	toSave := []models.Metrics{}
 	for name, value := range counters {
-		delta := s.calculateCounterValue(name, value)
+		delta := s.calculateCounterValue(ctx, name, value)
 		m := models.Metrics{MType: models.CounterType, ID: name, Delta: &delta}
-		validated = append(validated, m)
+		toSave = append(toSave, m)
 	}
 	for name, value := range gauges {
 		m := models.Metrics{MType: models.GaugeType, ID: name, Value: &value}
-		validated = append(validated, m)
+		toSave = append(toSave, m)
 	}
-	return s.r.Load(validated)
+	return s.r.Load(ctx, toSave)
 }

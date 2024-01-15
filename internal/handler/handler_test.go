@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -99,9 +100,9 @@ func TestHandleGetByParam(t *testing.T) {
 	value := float64(123)
 	m1 := models.Metrics{MType: models.CounterType, ID: `testCounter`, Delta: &delta}
 	m2 := models.Metrics{MType: models.GaugeType, ID: `testGuade`, Value: &value}
-	_, err := r.Create(m1)
+	_, err := r.Create(context.Background(), m1)
 	require.NoError(t, err)
-	_, err = r.Create(m2)
+	_, err = r.Create(context.Background(), m2)
 	require.NoError(t, err)
 
 	tests := []struct {

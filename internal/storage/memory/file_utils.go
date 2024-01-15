@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/avast/retry-go"
+
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
@@ -18,8 +20,18 @@ func Load(path string) ([]models.Metrics, error) {
 	if err != nil {
 		return nil, err
 	}
+	var bytes []byte
+	err = retry.Do(
+		func() error {
+			var err error
+			bytes, err = os.ReadFile(path)
+			return err
+		},
+		retry.Attempts(models.Attempts),
+		retry.DelayType(models.DelayType),
+		retry.OnRetry(models.OnRetry),
+	)
 
-	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading data from file %s: %w", path, err)
 	}
@@ -55,7 +67,17 @@ func Save(path string, ms []models.Metrics) error {
 		return fmt.Errorf("error converting data to json %w", err)
 	}
 
-	_, err = file.Write(bytes)
+	err = retry.Do(
+		func() error {
+			var err error
+			_, err = file.Write(bytes)
+			return err
+		},
+		retry.Attempts(models.Attempts),
+		retry.DelayType(models.DelayType),
+		retry.OnRetry(models.OnRetry),
+	)
+
 	if err != nil {
 		return fmt.Errorf("error writing data into file %s; %w", path, err)
 	}

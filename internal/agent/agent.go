@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/go-http-utils/headers"
 	"github.com/go-resty/resty/v2"
 
@@ -123,27 +124,22 @@ func (a *Agent) parse(v uint64) *float64 {
 	return &f
 }
 
-func (a *Agent) sendRequest(m models.Metrics) {
-	url := fmt.Sprintf("http://%s/update/", a.serverAddress)
-	buf := gzipData(m)
-	resp, err := a.client.R().SetHeader(headers.ContentType, `application/json`).
-		SetHeader(headers.ContentEncoding, `gzip`).
-		SetHeader(headers.AcceptEncoding, `gzip`).
-		SetBody(buf).Post(url)
-	if err != nil {
-		logger.Error(err.Error())
-	}
-	if resp.StatusCode() != http.StatusOK {
-		logger.Error(fmt.Sprintf(`unexpected status code %d`, resp.StatusCode()))
-	}
-}
-
 func (a *Agent) sendBatchRequest(metrics []models.Metrics) {
 	buf := gzipData(metrics)
-	resp, err := a.client.R().SetHeader(headers.ContentType, `application/json`).
-		SetHeader(headers.ContentEncoding, `gzip`).
-		SetHeader(headers.AcceptEncoding, `gzip`).
-		SetBody(buf).Post(fmt.Sprintf("http://%s/updates/", a.serverAddress))
+	var resp *resty.Response
+	err := retry.Do(
+		func() error {
+			var err error
+			resp, err = a.client.R().SetHeader(headers.ContentType, `application/json`).
+				SetHeader(headers.ContentEncoding, `gzip`).
+				SetHeader(headers.AcceptEncoding, `gzip`).
+				SetBody(buf).Post(fmt.Sprintf("http://%s/updates/", a.serverAddress))
+			return err
+		},
+		retry.Attempts(models.Attempts),
+		retry.DelayType(models.DelayType),
+		retry.OnRetry(models.OnRetry),
+	)
 	if err != nil {
 		logger.Error(err.Error())
 	}

@@ -70,7 +70,7 @@ func (h *Handler) HandleUpdateByParam(res http.ResponseWriter, req *http.Request
 		return
 	}
 
-	_, err = h.service.Save(m)
+	_, err = h.service.Save(req.Context(), m)
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 	}
@@ -81,7 +81,7 @@ func (h *Handler) HandleGetByParam(res http.ResponseWriter, req *http.Request) {
 	metricType, metricName := chi.URLParam(req, "metricType"), chi.URLParam(req, "metricName")
 	res.Header().Set(headers.ContentType, "text/plain")
 
-	value, err := h.service.GetMetricValue(metricType, metricName)
+	value, err := h.service.GetMetricValue(req.Context(), metricType, metricName)
 
 	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
@@ -100,7 +100,7 @@ func (h *Handler) HandleGetAll(res http.ResponseWriter, req *http.Request) {
 	type Item struct {
 		Metrics []models.Metrics
 	}
-	metrics, err := h.service.GetAll()
+	metrics, err := h.service.GetAll(req.Context())
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 		return
@@ -125,7 +125,7 @@ func (h *Handler) HandleUpdate(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	*m, err = h.service.Save(*m)
+	*m, err = h.service.Save(req.Context(), *m)
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 		return
@@ -154,7 +154,7 @@ func (h *Handler) HandleGet(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	*m, err = h.service.Get((*m).MType, (*m).ID)
+	*m, err = h.service.Get(req.Context(), (*m).MType, (*m).ID)
 	if err != nil {
 		res.WriteHeader(http.StatusNotFound)
 		return
@@ -198,7 +198,7 @@ func (h *Handler) HandleUpdates(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 	}
-	err = h.service.Load(metrics)
+	err = h.service.Load(req.Context(), metrics)
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 	}

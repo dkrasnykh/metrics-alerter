@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -35,7 +36,7 @@ func New(path string, interval int) *Storage {
 	}
 }
 
-func (s *Storage) Create(m models.Metrics) (models.Metrics, error) {
+func (s *Storage) Create(ctx context.Context, m models.Metrics) (models.Metrics, error) {
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
@@ -48,7 +49,7 @@ func (s *Storage) Create(m models.Metrics) (models.Metrics, error) {
 	return m, nil
 }
 
-func (s *Storage) Get(mType, mName string) (models.Metrics, error) {
+func (s *Storage) Get(ctx context.Context, mType, mName string) (models.Metrics, error) {
 	s.mx.RLock()
 	defer s.mx.RUnlock()
 
@@ -60,7 +61,7 @@ func (s *Storage) Get(mType, mName string) (models.Metrics, error) {
 	return models.GetMetric(k.MType, k.ID, v.Value, v.Delta), nil
 }
 
-func (s *Storage) GetAll() ([]models.Metrics, error) {
+func (s *Storage) GetAll(ctx context.Context) ([]models.Metrics, error) {
 	s.mx.RLock()
 	defer s.mx.RUnlock()
 
@@ -71,24 +72,7 @@ func (s *Storage) GetAll() ([]models.Metrics, error) {
 	return ms, nil
 }
 
-func (s *Storage) Update(m models.Metrics) (models.Metrics, error) {
-	return s.Create(m)
-}
-
-func (s *Storage) Delete(mType, mName string) error {
-	m, err := s.Get(mType, mName)
-	if err != nil {
-		return err
-	}
-
-	s.mx.Lock()
-	defer s.mx.Unlock()
-	k := Key{m.MType, m.ID}
-	delete(s.storage, k)
-	return nil
-}
-
-func (s *Storage) Load(metrics []models.Metrics) error {
+func (s *Storage) Load(ctx context.Context, metrics []models.Metrics) error {
 	s.mx.Lock()
 	defer s.mx.Unlock()
 
@@ -109,7 +93,7 @@ func (s *Storage) Restore() {
 		logger.Error(err.Error())
 	}
 	for _, m := range data {
-		_, err = s.Update(m)
+		_, err = s.Create(context.Background(), m)
 		if err != nil {
 			logger.Error(err.Error())
 		}
@@ -125,7 +109,7 @@ func (s *Storage) StoreIntoFile() {
 					logger.Error(err.Error())
 				}
 			}
-			ms, err := s.GetAll()
+			ms, err := s.GetAll(context.Background())
 			checker(err)
 			err = Save(s.filePath, ms)
 			checker(err)

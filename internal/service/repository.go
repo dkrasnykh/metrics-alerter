@@ -1,12 +1,14 @@
 package service
 
-import "github.com/dkrasnykh/metrics-alerter/internal/models"
+import (
+	"context"
+
+	"github.com/dkrasnykh/metrics-alerter/internal/models"
+)
 
 type Storager interface {
-	Create(metric models.Metrics) (models.Metrics, error)
-	Get(mType, name string) (models.Metrics, error)
-	GetAll() ([]models.Metrics, error)
-	Update(metric models.Metrics) (models.Metrics, error)
-	Delete(mType, name string) error
-	Load([]models.Metrics) error
+	Create(ctx context.Context, metric models.Metrics) (models.Metrics, error)
+	Get(ctx context.Context, mType, name string) (models.Metrics, error)
+	GetAll(ctx context.Context) ([]models.Metrics, error)
+	Load(ctx context.Context, metrics []models.Metrics) error
 }
