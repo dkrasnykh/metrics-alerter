@@ -7,6 +7,7 @@ import (
 	"github.com/avast/retry-go"
 	"github.com/jmoiron/sqlx"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
@@ -48,9 +49,9 @@ func InitDB(db *sqlx.DB) error {
 			)
 			return err
 		},
-		retry.Attempts(models.Attempts),
-		retry.DelayType(models.DelayType),
-		retry.OnRetry(models.OnRetry),
+		retry.Attempts(config.Attempts),
+		retry.DelayType(config.DelayType),
+		retry.OnRetry(config.OnRetry),
 	)
 
 	if err != nil {
@@ -78,9 +79,9 @@ func (s *Storage) Create(ctx context.Context, metric models.Metrics) (models.Met
 			}
 			return err
 		},
-		retry.Attempts(models.Attempts),
-		retry.DelayType(models.DelayType),
-		retry.OnRetry(models.OnRetry),
+		retry.Attempts(config.Attempts),
+		retry.DelayType(config.DelayType),
+		retry.OnRetry(config.OnRetry),
 	)
 	if err != nil {
 		err = tx.Rollback()
@@ -99,9 +100,9 @@ func (s *Storage) Get(ctx context.Context, mType, name string) (models.Metrics, 
 			row = s.db.QueryRowContext(ctx, `select delta, value from metrics where name=$1 and type=$2 ORDER BY time DESC LIMIT 1;`, name, mType)
 			return row.Err()
 		},
-		retry.Attempts(models.Attempts),
-		retry.DelayType(models.DelayType),
-		retry.OnRetry(models.OnRetry),
+		retry.Attempts(config.Attempts),
+		retry.DelayType(config.DelayType),
+		retry.OnRetry(config.OnRetry),
 	)
 
 	if err != nil {
@@ -135,9 +136,9 @@ func (s *Storage) GetAll(ctx context.Context) ([]models.Metrics, error) {
 			}
 			return err
 		},
-		retry.Attempts(models.Attempts),
-		retry.DelayType(models.DelayType),
-		retry.OnRetry(models.OnRetry),
+		retry.Attempts(config.Attempts),
+		retry.DelayType(config.DelayType),
+		retry.OnRetry(config.OnRetry),
 	)
 
 	if err != nil {
@@ -191,9 +192,9 @@ func (s *Storage) Load(ctx context.Context, metrics []models.Metrics) error {
 				}
 				return err
 			},
-			retry.Attempts(models.Attempts),
-			retry.DelayType(models.DelayType),
-			retry.OnRetry(models.OnRetry),
+			retry.Attempts(config.Attempts),
+			retry.DelayType(config.DelayType),
+			retry.OnRetry(config.OnRetry),
 		)
 		if err != nil {
 			err = tx.Rollback()
@@ -201,6 +202,10 @@ func (s *Storage) Load(ctx context.Context, metrics []models.Metrics) error {
 		}
 	}
 	return tx.Commit()
+}
+
+func (s *Storage) Ping(ctx context.Context) error {
+	return s.db.Ping()
 }
 
 func metric(m models.Metrics, delta sql.NullInt64, value sql.NullFloat64) models.Metrics {

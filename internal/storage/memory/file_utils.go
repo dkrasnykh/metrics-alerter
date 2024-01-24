@@ -7,6 +7,7 @@ import (
 
 	"github.com/avast/retry-go"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
@@ -27,9 +28,9 @@ func Load(path string) ([]models.Metrics, error) {
 			bytes, err = os.ReadFile(path)
 			return err
 		},
-		retry.Attempts(models.Attempts),
-		retry.DelayType(models.DelayType),
-		retry.OnRetry(models.OnRetry),
+		retry.Attempts(config.Attempts),
+		retry.DelayType(config.DelayType),
+		retry.OnRetry(config.OnRetry),
 	)
 
 	if err != nil {
@@ -73,9 +74,9 @@ func Save(path string, ms []models.Metrics) error {
 			_, err = file.Write(bytes)
 			return err
 		},
-		retry.Attempts(models.Attempts),
-		retry.DelayType(models.DelayType),
-		retry.OnRetry(models.OnRetry),
+		retry.Attempts(config.Attempts),
+		retry.DelayType(config.DelayType),
+		retry.OnRetry(config.OnRetry),
 	)
 
 	if err != nil {

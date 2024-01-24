@@ -11,4 +11,5 @@ type Storager interface {
 	Get(ctx context.Context, mType, name string) (models.Metrics, error)
 	GetAll(ctx context.Context) ([]models.Metrics, error)
 	Load(ctx context.Context, metrics []models.Metrics) error
+	Ping(ctx context.Context) error
 }

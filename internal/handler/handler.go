@@ -12,7 +12,7 @@ import (
 
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
-	"github.com/dkrasnykh/metrics-alerter/internal/storage/database"
+	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
 
 const (
@@ -59,7 +59,7 @@ func (h *Handler) HandleUpdateByParam(res http.ResponseWriter, req *http.Request
 
 	res.Header().Set(headers.ContentType, "text/plain")
 
-	m := models.Convert(metricType, metricName, metricValue)
+	m := utils.Convert(metricType, metricName, metricValue)
 	err := h.service.Validate(m)
 	if err != nil {
 		if errors.Is(err, service.ErrIDIsEmpty) {
@@ -115,7 +115,7 @@ func (h *Handler) HandleGetAll(res http.ResponseWriter, req *http.Request) {
 
 func (h *Handler) HandleUpdate(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set(headers.ContentType, "application/json")
-	m, err := models.ExtractBody(req)
+	m, err := utils.ExtractBody(req)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -145,7 +145,7 @@ func (h *Handler) HandleUpdate(res http.ResponseWriter, req *http.Request) {
 
 func (h *Handler) HandleGet(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set(headers.ContentType, "application/json")
-	m, err := models.ExtractBody(req)
+	m, err := utils.ExtractBody(req)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -173,7 +173,7 @@ func (h *Handler) HandleGet(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handler) HandleGetPing(res http.ResponseWriter, req *http.Request) {
-	err := database.Ping()
+	err := h.service.Ping(req.Context())
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 	}

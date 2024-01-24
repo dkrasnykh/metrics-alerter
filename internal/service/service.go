@@ -102,3 +102,7 @@ func (s *Service) Load(ctx context.Context, metrics []models.Metrics) error {
 	}
 	return s.r.Load(ctx, toSave)
 }
+
+func (s *Service) Ping(ctx context.Context) error {
+	return s.r.Ping(ctx)
+}

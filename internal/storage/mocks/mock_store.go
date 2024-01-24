@@ -70,7 +70,7 @@ func (m *MockStorager) GetAll(ctx context.Context) ([]models.Metrics, error) {
 	return ret0, ret1
 }
 
-// GetAll indicates an expected call of Get.
+// GetAll indicates an expected call of GetAll.
 func (mr *MockStoragerMockRecorder) GetAll(ctx context.Context) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockStorager)(nil).GetAll), ctx)
@@ -88,4 +88,18 @@ func (m *MockStorager) Load(ctx context.Context, metrics []models.Metrics) error
 func (mr *MockStoragerMockRecorder) Load(ctx, metrics interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Load", reflect.TypeOf((*MockStorager)(nil).Load), ctx, metrics)
+}
+
+// Ping mocks base method.
+func (m *MockStorager) Ping(ctx context.Context) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Ping", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Ping indicates an expected call of Ping.
+func (mr *MockStoragerMockRecorder) Ping(ctx context.Context) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockStorager)(nil).Ping), ctx)
 }

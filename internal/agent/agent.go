@@ -16,8 +16,10 @@ import (
 	"github.com/go-http-utils/headers"
 	"github.com/go-resty/resty/v2"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
+	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
 
 type SyncMemStats struct {
@@ -118,9 +120,7 @@ func (a *Agent) reportMemStats() {
 
 func (a *Agent) parse(v uint64) *float64 {
 	f, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64)
-	if err != nil {
-		logger.Error(err.Error())
-	}
+	utils.LogError(err)
 	return &f
 }
 
@@ -136,32 +136,25 @@ func (a *Agent) sendBatchRequest(metrics []models.Metrics) {
 				SetBody(buf).Post(fmt.Sprintf("http://%s/updates/", a.serverAddress))
 			return err
 		},
-		retry.Attempts(models.Attempts),
-		retry.DelayType(models.DelayType),
-		retry.OnRetry(models.OnRetry),
+		retry.Attempts(config.Attempts),
+		retry.DelayType(config.DelayType),
+		retry.OnRetry(config.OnRetry),
 	)
-	if err != nil {
-		logger.Error(err.Error())
-	}
+	utils.LogError(err)
 	if resp.StatusCode() != http.StatusOK {
 		logger.Error(fmt.Sprintf(`unexpected status code %d`, resp.StatusCode()))
 	}
 }
 
 func gzipData(any interface{}) []byte {
-	logError := func(err error) {
-		if err != nil {
-			logger.Error(err.Error())
-		}
-	}
 	body, err := json.Marshal(any)
-	logError(err)
+	utils.LogError(err)
 	var b bytes.Buffer
 	gz := gzip.NewWriter(&b)
 	_, err = gz.Write(body)
-	logError(err)
+	utils.LogError(err)
 	err = gz.Close()
-	logError(err)
+	utils.LogError(err)
 	buf := b.Bytes()
 	return buf
 }

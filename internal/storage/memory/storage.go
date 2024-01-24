@@ -2,12 +2,14 @@ package memory
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
+	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
 
 type Key struct {
@@ -58,7 +60,7 @@ func (s *Storage) Get(ctx context.Context, mType, mName string) (models.Metrics,
 	if !ok {
 		return models.Metrics{}, fmt.Errorf("value by %s type and %s name not found", mType, mName)
 	}
-	return models.GetMetric(k.MType, k.ID, v.Value, v.Delta), nil
+	return utils.GetMetric(k.MType, k.ID, v.Value, v.Delta), nil
 }
 
 func (s *Storage) GetAll(ctx context.Context) ([]models.Metrics, error) {
@@ -67,7 +69,7 @@ func (s *Storage) GetAll(ctx context.Context) ([]models.Metrics, error) {
 
 	ms := make([]models.Metrics, 0, len(s.storage))
 	for k, v := range s.storage {
-		ms = append(ms, models.GetMetric(k.MType, k.ID, v.Value, v.Delta))
+		ms = append(ms, utils.GetMetric(k.MType, k.ID, v.Value, v.Delta))
 	}
 	return ms, nil
 }
@@ -82,6 +84,10 @@ func (s *Storage) Load(ctx context.Context, metrics []models.Metrics) error {
 		s.storage[key] = value
 	}
 	return nil
+}
+
+func (s *Storage) Ping(ctx context.Context) error {
+	return errors.New(`database is not used`)
 }
 
 func (s *Storage) Restore() {
