@@ -7,16 +7,17 @@ import (
 	"strconv"
 
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
+	"github.com/dkrasnykh/metrics-alerter/internal/repository"
 )
 
 var ErrUnknownMetricType = errors.New("unknown metric type")
 var ErrIDIsEmpty = errors.New("metric ID is empty")
 
 type Service struct {
-	r Storager
+	r repository.Storager
 }
 
-func New(s Storager) *Service {
+func New(s repository.Storager) *Service {
 	return &Service{r: s}
 }
 

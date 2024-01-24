@@ -90,22 +90,6 @@ func (s *Storage) Ping(ctx context.Context) error {
 	return errors.New(`database is not used`)
 }
 
-func (s *Storage) Restore() {
-	if s.filePath == "" {
-		return
-	}
-	data, err := Load(s.filePath)
-	if err != nil {
-		logger.Error(err.Error())
-	}
-	for _, m := range data {
-		_, err = s.Create(context.Background(), m)
-		if err != nil {
-			logger.Error(err.Error())
-		}
-	}
-}
-
 func (s *Storage) StoreIntoFile() {
 	if s.filePath != "" {
 		timeDuration := time.Duration(s.fileStoreInterval) * time.Second

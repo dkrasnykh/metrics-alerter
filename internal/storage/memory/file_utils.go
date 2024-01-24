@@ -1,16 +1,18 @@
 package memory
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 
-	"github.com/avast/retry-go"
-
-	"github.com/dkrasnykh/metrics-alerter/internal/config"
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
+	"github.com/dkrasnykh/metrics-alerter/internal/repository"
+	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
+
+var FilePath string
 
 type data struct {
 	Metrics []models.Metrics `json:"metrics"`
@@ -22,24 +24,13 @@ func Load(path string) ([]models.Metrics, error) {
 		return nil, err
 	}
 	var bytes []byte
-	err = retry.Do(
-		func() error {
-			var err error
-			bytes, err = os.ReadFile(path)
-			return err
-		},
-		retry.Attempts(config.Attempts),
-		retry.DelayType(config.DelayType),
-		retry.OnRetry(config.OnRetry),
-	)
-
+	bytes, err = os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading data from file %s: %w", path, err)
 	}
 	if len(bytes) == 0 {
 		return nil, fmt.Errorf(`file %s is empty`, path)
 	}
-
 	v := data{}
 	err = json.Unmarshal(bytes, &v)
 	if err != nil {
@@ -50,35 +41,19 @@ func Load(path string) ([]models.Metrics, error) {
 
 func Save(path string, ms []models.Metrics) error {
 	file, err := os.Create(path)
-
 	if err != nil {
 		return err
 	}
-
 	defer func(file *os.File) {
 		err := file.Close()
-		if err != nil {
-			logger.Error(err.Error())
-		}
+		utils.LogError(err)
 	}(file)
-
 	v := data{ms}
 	bytes, err := json.Marshal(&v)
 	if err != nil {
 		return fmt.Errorf("error converting data to json %w", err)
 	}
-
-	err = retry.Do(
-		func() error {
-			var err error
-			_, err = file.Write(bytes)
-			return err
-		},
-		retry.Attempts(config.Attempts),
-		retry.DelayType(config.DelayType),
-		retry.OnRetry(config.OnRetry),
-	)
-
+	_, err = file.Write(bytes)
 	if err != nil {
 		return fmt.Errorf("error writing data into file %s; %w", path, err)
 	}
@@ -87,8 +62,24 @@ func Save(path string, ms []models.Metrics) error {
 
 func InitDir(path string) string {
 	err := os.MkdirAll(path+"/", 0777)
-	if err != nil {
-		logger.Error(err.Error())
+	utils.LogError(err)
+	FilePath = path + "/metrics.tmp"
+	return FilePath
+}
+
+func Restore(r repository.Storager) error {
+	if FilePath == "" {
+		return errors.New("the path is undefined")
 	}
-	return path + "/metrics.tmp"
+	data, err := Load(FilePath)
+	if err != nil {
+		return err
+	}
+	for _, m := range data {
+		_, err = r.Create(context.Background(), m)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

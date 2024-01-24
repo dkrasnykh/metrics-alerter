@@ -8,14 +8,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
-	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
+	"github.com/dkrasnykh/metrics-alerter/internal/storage"
 )
 
 func TestValidate(t *testing.T) {
 	_ = logger.InitLogger()
-	r := memory.New("", 0)
+	r, _ := storage.New(&config.ServerConfig{})
 	s := New(r)
 
 	delta := int64(10)
@@ -45,7 +46,7 @@ func TestValidate(t *testing.T) {
 func TestSave(t *testing.T) {
 	ctx := context.Background()
 	_ = logger.InitLogger()
-	r := memory.New("", 0)
+	r, _ := storage.New(&config.ServerConfig{})
 	s := New(r)
 	value := float64(100)
 	m := models.Metrics{MType: models.GaugeType, ID: `test`, Value: &value}
@@ -57,7 +58,7 @@ func TestSave(t *testing.T) {
 func TestCalculateCounterValue(t *testing.T) {
 	_ = logger.InitLogger()
 	ctx := context.Background()
-	r := memory.New("", 0)
+	r, _ := storage.New(&config.ServerConfig{})
 	s := New(r)
 
 	value := s.calculateCounterValue(ctx, `name1`, 250)
@@ -73,7 +74,7 @@ func TestCalculateCounterValue(t *testing.T) {
 func TestGetCounterMetricValue(t *testing.T) {
 	_ = logger.InitLogger()
 	ctx := context.Background()
-	r := memory.New("", 0)
+	r, _ := storage.New(&config.ServerConfig{})
 	s := New(r)
 
 	_, err := s.GetMetricValue(ctx, models.CounterType, "test")
@@ -90,7 +91,7 @@ func TestGetCounterMetricValue(t *testing.T) {
 func TestGetAll(t *testing.T) {
 	_ = logger.InitLogger()
 	ctx := context.Background()
-	r := memory.New("", 0)
+	r, _ := storage.New(&config.ServerConfig{})
 	s := New(r)
 	delta := int64(500)
 	value := float64(500)
