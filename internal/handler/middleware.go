@@ -1,21 +1,27 @@
 package handler
 
 import (
+	"bytes"
 	"compress/gzip"
 	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/go-http-utils/headers"
+
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
+	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
 
 type CompressWriter struct {
 	http.ResponseWriter
 	Writer io.Writer
+	bytes  []byte
 }
 
 func (w CompressWriter) Write(b []byte) (int, error) {
+	w.bytes = b
 	return w.Writer.Write(b)
 }
 
@@ -28,9 +34,9 @@ func (h *Handler) Logging(next http.Handler) http.Handler {
 	})
 }
 
-func (h *Handler) GzipResponse(next http.Handler) http.Handler {
+func (h *Handler) GzipRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Content-Encoding"), "gzip") {
+		if !strings.Contains(r.Header.Get(headers.ContentEncoding), "gzip") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -54,9 +60,9 @@ func (h *Handler) GzipResponse(next http.Handler) http.Handler {
 	})
 }
 
-func (h *Handler) GzipRequest(next http.Handler) http.Handler {
+func (h *Handler) GzipResponse(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		if !strings.Contains(r.Header.Get(headers.AcceptEncoding), "gzip") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -74,7 +80,33 @@ func (h *Handler) GzipRequest(next http.Handler) http.Handler {
 				return
 			}
 		}(gz)
-		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set(headers.ContentEncoding, "gzip")
 		next.ServeHTTP(CompressWriter{ResponseWriter: w, Writer: gz}, r)
+	})
+}
+
+func (h *Handler) Hash(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get(utils.HashHeader) != "" {
+			expected := r.Header.Get(utils.HashHeader)
+			buf, err := io.ReadAll(r.Body)
+			utils.LogError(err)
+			actual := utils.Hash(buf, []byte(h.key))
+			if expected != actual {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			r.Body = io.NopCloser(bytes.NewBuffer(buf))
+		}
+
+		next.ServeHTTP(w, r)
+		
+		if h.key != "" {
+			writer, ok := w.(CompressWriter)
+			if ok {
+				hash := utils.Hash(writer.bytes, []byte(h.key))
+				w.Header().Set(utils.HashHeader, hash)
+			}
+		}
 	})
 }

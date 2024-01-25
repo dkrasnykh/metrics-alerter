@@ -15,6 +15,6 @@ func main() {
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
-	a := agent.New(cfg.Address, cfg.PollInterval, cfg.ReportInterval)
+	a := agent.New(cfg)
 	a.Run()
 }

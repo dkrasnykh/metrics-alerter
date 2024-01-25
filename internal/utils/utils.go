@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -10,6 +13,8 @@ import (
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
+
+const HashHeader = "HashSHA256"
 
 func Convert(mtype, mname, value string) models.Metrics {
 	m := models.Metrics{MType: mtype, ID: mname}
@@ -59,4 +64,10 @@ func LogError(err error) {
 	if err != nil {
 		logger.Error(err.Error())
 	}
+}
+
+func Hash(bytes []byte, key []byte) string {
+	h := hmac.New(sha256.New, key)
+	h.Write(bytes)
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }

@@ -38,7 +38,7 @@ func (s *Server) Run() error {
 	if err != nil {
 		return err
 	}
-	h := handler.New(v)
+	h := handler.New(v, s.c.Key)
 
 	err = http.ListenAndServe(s.c.Address, h.InitRoutes())
 	return err

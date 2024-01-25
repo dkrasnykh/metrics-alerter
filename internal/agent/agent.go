@@ -35,15 +35,17 @@ type Agent struct {
 	pollTicker     *time.Ticker
 	reportTicker   *time.Ticker
 	pollCount      int64
+	key            string
 	memStats       SyncMemStats
 }
 
-func New(serverAddress string, pollInterval, reportInterval int) *Agent {
+func New(c *config.AgentConfig) *Agent {
 	return &Agent{
 		client:         resty.New(),
-		serverAddress:  serverAddress,
-		pollInterval:   pollInterval,
-		reportInterval: reportInterval,
+		serverAddress:  c.Address,
+		pollInterval:   c.PollInterval,
+		reportInterval: c.ReportInterval,
+		key:            c.Key,
 		memStats: SyncMemStats{
 			v:  &runtime.MemStats{},
 			mx: sync.RWMutex{},
@@ -125,15 +127,20 @@ func (a *Agent) parse(v uint64) *float64 {
 }
 
 func (a *Agent) sendBatchRequest(metrics []models.Metrics) {
+	req := a.client.R().SetHeader(headers.ContentType, `application/json`).
+		SetHeader(headers.ContentEncoding, `gzip`).
+		SetHeader(headers.AcceptEncoding, `gzip`)
 	buf := gzipData(metrics)
+	if a.key != "" {
+		req.SetHeader(utils.HashHeader, utils.Hash(buf, []byte(a.key)))
+	}
+	req.SetBody(buf)
+
 	var resp *resty.Response
 	err := retry.Do(
 		func() error {
 			var err error
-			resp, err = a.client.R().SetHeader(headers.ContentType, `application/json`).
-				SetHeader(headers.ContentEncoding, `gzip`).
-				SetHeader(headers.AcceptEncoding, `gzip`).
-				SetBody(buf).Post(fmt.Sprintf("http://%s/updates/", a.serverAddress))
+			resp, err = req.Post(fmt.Sprintf("http://%s/updates/", a.serverAddress))
 			return err
 		},
 		retry.Attempts(config.Attempts),

@@ -29,15 +29,20 @@ var T *template.Template
 
 type Handler struct {
 	service *service.Service
+	key     string
 }
 
-func New(s *service.Service) *Handler {
-	return &Handler{service: s}
+func New(s *service.Service, key string) *Handler {
+	return &Handler{
+		service: s,
+		key:     key,
+	}
 }
 
 func (h *Handler) InitRoutes() *chi.Mux {
 	r := chi.NewRouter()
 
+	r.Use(h.Hash)
 	r.Use(h.GzipRequest)
 	r.Use(h.GzipResponse)
 	r.Use(h.Logging)

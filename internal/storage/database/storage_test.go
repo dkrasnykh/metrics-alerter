@@ -41,30 +41,24 @@ func TestCreate(t *testing.T) {
 		{
 			name: "ok create counter",
 			mock: func(args args) {
-				//mock.ExpectBegin()
 				mock.ExpectExec("INSERT INTO metrics").WithArgs(args.m.ID, args.m.MType, *args.m.Delta).
 					WillReturnResult(sqlmock.NewResult(1, 1))
-				//ock.ExpectCommit()
 			},
 			input: args{ctx: ctx, m: models.Metrics{MType: models.CounterType, ID: "name1", Delta: &delta}},
 		},
 		{
 			name: "ok create gauge",
 			mock: func(args args) {
-				//mock.ExpectBegin()
 				mock.ExpectExec("INSERT INTO metrics").WithArgs(args.m.ID, args.m.MType, *args.m.Value).
 					WillReturnResult(sqlmock.NewResult(1, 1))
-				//mock.ExpectCommit()
 			},
 			input: args{ctx: ctx, m: models.Metrics{MType: models.GaugeType, ID: "name1", Value: &value}},
 		},
 		{
 			name: "insertion error",
 			mock: func(args args) {
-				//mock.ExpectBegin()
 				mock.ExpectExec("INSERT INTO metrics").WithArgs(args.m.ID, args.m.MType, *args.m.Value).
 					WillReturnError(ErrTest)
-				//mock.ExpectRollback()
 			},
 			input:   args{ctx: ctx, m: models.Metrics{MType: models.GaugeType, ID: "name1", Value: &value}},
 			wantErr: true,

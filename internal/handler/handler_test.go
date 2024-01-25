@@ -22,7 +22,7 @@ func TestHandleUpdateByParam(t *testing.T) {
 	_ = logger.InitLogger()
 	r := memory.New("", 0)
 	v := service.New(r)
-	h := New(v)
+	h := New(v, ``)
 	testServ := httptest.NewServer(h.InitRoutes())
 	defer testServ.Close()
 
@@ -93,7 +93,7 @@ func TestHandleGetByParam(t *testing.T) {
 	_ = logger.InitLogger()
 	r := memory.New("", 0)
 	v := service.New(r)
-	h := New(v)
+	h := New(v, ``)
 	testServ := httptest.NewServer(h.InitRoutes())
 	defer testServ.Close()
 	delta := int64(123)
