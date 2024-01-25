@@ -31,9 +31,6 @@ func (s *Server) Run() error {
 		return err
 	}
 	v := service.New(r)
-	if err != nil {
-		return err
-	}
 	handler.T, err = template.New("webpage").Parse(handler.Tpl)
 	if err != nil {
 		return err

@@ -22,7 +22,7 @@ type CompressWriter struct {
 
 func (w CompressWriter) Write(b []byte) (int, error) {
 	w.bytes = b
-	return w.Writer.Write(b)
+	return w.Writer.Write(w.bytes)
 }
 
 func (h *Handler) Logging(next http.Handler) http.Handler {
@@ -100,7 +100,7 @@ func (h *Handler) Hash(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(w, r)
-		
+
 		if h.key != "" {
 			writer, ok := w.(CompressWriter)
 			if ok {

@@ -25,8 +25,7 @@ func New(c *config.ServerConfig) (repository.Storager, error) {
 		if c.Restore {
 			err := retry.Do(
 				func() error {
-					var err error
-					err = memory.Restore(r)
+					err := memory.Restore(r)
 					return err
 				},
 				retry.Attempts(config.Attempts),
@@ -101,8 +100,7 @@ func (s *StorageWrap) GetAll(ctx context.Context) ([]models.Metrics, error) {
 func (s *StorageWrap) Load(ctx context.Context, metrics []models.Metrics) error {
 	err := retry.Do(
 		func() error {
-			var err error
-			err = s.r.Load(ctx, metrics)
+			err := s.r.Load(ctx, metrics)
 			return err
 		},
 		retry.Attempts(config.Attempts),
