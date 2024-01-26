@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
@@ -15,6 +16,8 @@ import (
 	"github.com/avast/retry-go"
 	"github.com/go-http-utils/headers"
 	"github.com/go-resty/resty/v2"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
@@ -22,9 +25,14 @@ import (
 	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
 
+var wg sync.WaitGroup
+
 type SyncMemStats struct {
-	v  *runtime.MemStats
-	mx sync.RWMutex
+	v               *runtime.MemStats
+	TotalMemory     float64
+	FreeMemory      float64
+	CPUutilization1 float64
+	mx              sync.RWMutex
 }
 
 type Agent struct {
@@ -36,6 +44,7 @@ type Agent struct {
 	reportTicker   *time.Ticker
 	pollCount      int64
 	key            string
+	rateLimit      int
 	memStats       SyncMemStats
 }
 
@@ -46,6 +55,7 @@ func New(c *config.AgentConfig) *Agent {
 		pollInterval:   c.PollInterval,
 		reportInterval: c.ReportInterval,
 		key:            c.Key,
+		rateLimit:      c.RateLimit,
 		memStats: SyncMemStats{
 			v:  &runtime.MemStats{},
 			mx: sync.RWMutex{},
@@ -53,16 +63,18 @@ func New(c *config.AgentConfig) *Agent {
 	}
 }
 
-func (a *Agent) Run() {
+func (a *Agent) Run(ctx context.Context) {
 	a.pollTicker = time.NewTicker(time.Duration(a.pollInterval) * time.Second)
 	defer a.pollTicker.Stop()
 	a.reportTicker = time.NewTicker(time.Duration(a.reportInterval) * time.Second)
 	defer a.reportTicker.Stop()
 
 	go a.collectMemStats()
+
+	wg.Add(a.rateLimit)
 	go a.reportMemStats()
 
-	time.Sleep(time.Minute)
+	<-ctx.Done()
 }
 
 func (a *Agent) collectMemStats() {
@@ -70,7 +82,16 @@ func (a *Agent) collectMemStats() {
 		a.pollCount++
 
 		a.memStats.mx.Lock()
+
 		runtime.ReadMemStats(a.memStats.v)
+		vm, err := mem.VirtualMemory()
+		utils.LogError(err)
+		a.memStats.FreeMemory = float64(vm.Free)
+		a.memStats.TotalMemory = float64(vm.Total)
+		cp, err := cpu.Percent(time.Millisecond, false)
+		utils.LogError(err)
+		a.memStats.CPUutilization1 = cp[0]
+
 		a.memStats.mx.Unlock()
 
 		logger.Info(fmt.Sprintf("metrics collection, timestamp: %s\n", t.String()))
@@ -113,10 +134,16 @@ func (a *Agent) reportMemStats() {
 			{ID: `StackSys`, MType: models.GaugeType, Value: a.parse(a.memStats.v.StackSys)},
 			{ID: `Sys`, MType: models.GaugeType, Value: a.parse(a.memStats.v.Sys)},
 			{ID: `TotalAlloc`, MType: models.GaugeType, Value: a.parse(a.memStats.v.TotalAlloc)},
+			{ID: `TotalMemory`, MType: models.GaugeType, Value: &a.memStats.TotalMemory},
+			{ID: `FreeMemory`, MType: models.GaugeType, Value: &a.memStats.FreeMemory},
+			{ID: `CPUutilization1`, MType: models.GaugeType, Value: &a.memStats.CPUutilization1},
 		}
 		a.memStats.mx.RUnlock()
 
 		go a.sendBatchRequest(metrics)
+
+		wg.Wait()
+		wg.Add(a.rateLimit)
 	}
 }
 
@@ -151,6 +178,8 @@ func (a *Agent) sendBatchRequest(metrics []models.Metrics) {
 	if resp.StatusCode() != http.StatusOK {
 		logger.Error(fmt.Sprintf(`unexpected status code %d`, resp.StatusCode()))
 	}
+
+	wg.Done()
 }
 
 func gzipData(any interface{}) []byte {

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+
 	"github.com/dkrasnykh/metrics-alerter/internal/agent"
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
@@ -16,5 +18,5 @@ func main() {
 		logger.Fatal(err.Error())
 	}
 	a := agent.New(cfg)
-	a.Run()
+	a.Run(context.Background())
 }
