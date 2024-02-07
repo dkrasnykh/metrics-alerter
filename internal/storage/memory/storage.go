@@ -9,7 +9,6 @@ import (
 
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
-	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
 
 type Key struct {
@@ -60,7 +59,7 @@ func (s *Storage) Get(ctx context.Context, mType, mName string) (models.Metrics,
 	if !ok {
 		return models.Metrics{}, fmt.Errorf("value by %s type and %s name not found", mType, mName)
 	}
-	return utils.GetMetric(k.MType, k.ID, v.Value, v.Delta), nil
+	return getMetric(k.MType, k.ID, v.Value, v.Delta), nil
 }
 
 func (s *Storage) GetAll(ctx context.Context) ([]models.Metrics, error) {
@@ -69,7 +68,7 @@ func (s *Storage) GetAll(ctx context.Context) ([]models.Metrics, error) {
 
 	ms := make([]models.Metrics, 0, len(s.storage))
 	for k, v := range s.storage {
-		ms = append(ms, utils.GetMetric(k.MType, k.ID, v.Value, v.Delta))
+		ms = append(ms, getMetric(k.MType, k.ID, v.Value, v.Delta))
 	}
 	return ms, nil
 }
@@ -119,4 +118,15 @@ func valueOrDefault(p *float64) float64 {
 		return 0
 	}
 	return *p
+}
+
+func getMetric(mtype, name string, value float64, delta int64) models.Metrics {
+	m := models.Metrics{MType: mtype, ID: name}
+	switch mtype {
+	case models.CounterType:
+		m.Delta = &delta
+	case models.GaugeType:
+		m.Value = &value
+	}
+	return m
 }

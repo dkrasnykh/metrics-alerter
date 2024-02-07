@@ -20,12 +20,10 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
+	"github.com/dkrasnykh/metrics-alerter/internal/hash"
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
-	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
-
-var wg sync.WaitGroup
 
 type SyncMemStats struct {
 	v               *runtime.MemStats
@@ -71,10 +69,15 @@ func (a *Agent) Run(ctx context.Context) {
 
 	go a.collectMemStats()
 
-	wg.Add(a.rateLimit)
-	go a.reportMemStats()
+	jobs := make(chan []models.Metrics)
+	results := make(chan struct{})
+	for w := 1; w <= a.rateLimit; w++ {
+		go a.worker(ctx, jobs, results)
+	}
 
-	<-ctx.Done()
+	go a.reportMemStats(jobs)
+
+	<-results
 }
 
 func (a *Agent) collectMemStats() {
@@ -85,11 +88,11 @@ func (a *Agent) collectMemStats() {
 
 		runtime.ReadMemStats(a.memStats.v)
 		vm, err := mem.VirtualMemory()
-		utils.LogError(err)
+		logger.LogErrorIfNotNil(err)
 		a.memStats.FreeMemory = float64(vm.Free)
 		a.memStats.TotalMemory = float64(vm.Total)
 		cp, err := cpu.Percent(time.Millisecond, false)
-		utils.LogError(err)
+		logger.LogErrorIfNotNil(err)
 		a.memStats.CPUutilization1 = cp[0]
 
 		a.memStats.mx.Unlock()
@@ -98,7 +101,21 @@ func (a *Agent) collectMemStats() {
 	}
 }
 
-func (a *Agent) reportMemStats() {
+func (a *Agent) worker(ctx context.Context, jobs <-chan []models.Metrics, results chan struct{}) {
+	for {
+		select {
+		case job, ok := <-jobs:
+			if !ok {
+				results <- struct{}{}
+			}
+			a.sendBatchRequest(job)
+		case <-ctx.Done():
+			results <- struct{}{}
+		}
+	}
+}
+
+func (a *Agent) reportMemStats(jobs chan []models.Metrics) {
 	for t := range a.reportTicker.C {
 		logger.Info(fmt.Sprintf("metrics reporting, timestamp: %s", t.String()))
 		f := rand.Float64()
@@ -140,16 +157,13 @@ func (a *Agent) reportMemStats() {
 		}
 		a.memStats.mx.RUnlock()
 
-		go a.sendBatchRequest(metrics)
-
-		wg.Wait()
-		wg.Add(a.rateLimit)
+		jobs <- metrics
 	}
 }
 
 func (a *Agent) parse(v uint64) *float64 {
 	f, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64)
-	utils.LogError(err)
+	logger.LogErrorIfNotNil(err)
 	return &f
 }
 
@@ -159,7 +173,7 @@ func (a *Agent) sendBatchRequest(metrics []models.Metrics) {
 		SetHeader(headers.AcceptEncoding, `gzip`)
 	buf := gzipData(metrics)
 	if a.key != "" {
-		req.SetHeader(utils.HashHeader, utils.Hash(buf, []byte(a.key)))
+		req.SetHeader(hash.Header, hash.Encode(buf, []byte(a.key)))
 	}
 	req.SetBody(buf)
 
@@ -174,23 +188,21 @@ func (a *Agent) sendBatchRequest(metrics []models.Metrics) {
 		retry.DelayType(config.DelayType),
 		retry.OnRetry(config.OnRetry),
 	)
-	utils.LogError(err)
+	logger.LogErrorIfNotNil(err)
 	if resp.StatusCode() != http.StatusOK {
 		logger.Error(fmt.Sprintf(`unexpected status code %d`, resp.StatusCode()))
 	}
-
-	wg.Done()
 }
 
 func gzipData(any interface{}) []byte {
 	body, err := json.Marshal(any)
-	utils.LogError(err)
+	logger.LogErrorIfNotNil(err)
 	var b bytes.Buffer
 	gz := gzip.NewWriter(&b)
 	_, err = gz.Write(body)
-	utils.LogError(err)
+	logger.LogErrorIfNotNil(err)
 	err = gz.Close()
-	utils.LogError(err)
+	logger.LogErrorIfNotNil(err)
 	buf := b.Bytes()
 	return buf
 }

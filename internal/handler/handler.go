@@ -6,13 +6,13 @@ import (
 	"html/template"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-http-utils/headers"
 
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
-	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
 
 const (
@@ -64,7 +64,7 @@ func (h *Handler) HandleUpdateByParam(res http.ResponseWriter, req *http.Request
 
 	res.Header().Set(headers.ContentType, "text/plain")
 
-	m := utils.Convert(metricType, metricName, metricValue)
+	m := convert(metricType, metricName, metricValue)
 	err := h.service.Validate(m)
 	if err != nil {
 		if errors.Is(err, service.ErrIDIsEmpty) {
@@ -120,7 +120,7 @@ func (h *Handler) HandleGetAll(res http.ResponseWriter, req *http.Request) {
 
 func (h *Handler) HandleUpdate(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set(headers.ContentType, "application/json")
-	m, err := utils.ExtractBody(req)
+	m, err := extractBody(req)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -150,7 +150,7 @@ func (h *Handler) HandleUpdate(res http.ResponseWriter, req *http.Request) {
 
 func (h *Handler) HandleGet(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set(headers.ContentType, "application/json")
-	m, err := utils.ExtractBody(req)
+	m, err := extractBody(req)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -207,4 +207,37 @@ func (h *Handler) HandleUpdates(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 	}
+}
+
+func extractBody(req *http.Request) (*models.Metrics, error) {
+	bytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		return nil, err
+	}
+	if len(bytes) == 0 {
+		return nil, errors.New(`request body is empty`)
+	}
+	var m models.Metrics
+	err = json.Unmarshal(bytes, &m)
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+func convert(mtype, mname, value string) models.Metrics {
+	m := models.Metrics{MType: mtype, ID: mname}
+	switch mtype {
+	case models.CounterType:
+		delta, err := strconv.ParseInt(value, 10, 64)
+		if err == nil {
+			m.Delta = &delta
+		}
+	case models.GaugeType:
+		gvalue, err := strconv.ParseFloat(value, 64)
+		if err == nil {
+			m.Value = &gvalue
+		}
+	}
+	return m
 }

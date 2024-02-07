@@ -7,12 +7,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/repository"
-	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
-
-var FilePath string
 
 type data struct {
 	Metrics []models.Metrics `json:"metrics"`
@@ -46,7 +44,7 @@ func Save(path string, ms []models.Metrics) error {
 	}
 	defer func(file *os.File) {
 		err := file.Close()
-		utils.LogError(err)
+		logger.LogErrorIfNotNil(err)
 	}(file)
 	v := data{ms}
 	bytes, err := json.Marshal(&v)
@@ -62,16 +60,15 @@ func Save(path string, ms []models.Metrics) error {
 
 func InitDir(path string) string {
 	err := os.MkdirAll(path+"/", 0777)
-	utils.LogError(err)
-	FilePath = path + "/metrics.tmp"
-	return FilePath
+	logger.LogErrorIfNotNil(err)
+	return path + "/metrics.tmp"
 }
 
-func Restore(r repository.Storager) error {
-	if FilePath == "" {
+func Restore(r repository.Storager, path string) error {
+	if path == "" {
 		return errors.New("the path is undefined")
 	}
-	data, err := Load(FilePath)
+	data, err := Load(path + "/metrics.tmp")
 	if err != nil {
 		return err
 	}

@@ -10,8 +10,8 @@ import (
 
 	"github.com/go-http-utils/headers"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/hash"
 	"github.com/dkrasnykh/metrics-alerter/internal/logger"
-	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
 
 type CompressWriter struct {
@@ -87,11 +87,11 @@ func (h *Handler) GzipResponse(next http.Handler) http.Handler {
 
 func (h *Handler) Hash(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get(utils.HashHeader) != "" {
-			expected := r.Header.Get(utils.HashHeader)
+		if r.Header.Get(hash.Header) != "" {
+			expected := r.Header.Get(hash.Header)
 			buf, err := io.ReadAll(r.Body)
-			utils.LogError(err)
-			actual := utils.Hash(buf, []byte(h.key))
+			logger.LogErrorIfNotNil(err)
+			actual := hash.Encode(buf, []byte(h.key))
 			if expected != actual {
 				w.WriteHeader(http.StatusBadRequest)
 				return
@@ -104,8 +104,8 @@ func (h *Handler) Hash(next http.Handler) http.Handler {
 		if h.key != "" {
 			writer, ok := w.(CompressWriter)
 			if ok {
-				hash := utils.Hash(writer.bytes, []byte(h.key))
-				w.Header().Set(utils.HashHeader, hash)
+				value := hash.Encode(writer.bytes, []byte(h.key))
+				w.Header().Set(hash.Header, value)
 			}
 		}
 	})

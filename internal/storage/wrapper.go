@@ -6,11 +6,11 @@ import (
 	"github.com/avast/retry-go"
 
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
+	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/repository"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage/database"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
-	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
 
 type StorageWrap struct {
@@ -25,14 +25,14 @@ func New(c *config.ServerConfig) (repository.Storager, error) {
 		if c.Restore {
 			err := retry.Do(
 				func() error {
-					err := memory.Restore(r)
+					err := memory.Restore(r, c.FileStoragePath)
 					return err
 				},
 				retry.Attempts(config.Attempts),
 				retry.DelayType(config.DelayType),
 				retry.OnRetry(config.OnRetry),
 			)
-			utils.LogError(err)
+			logger.LogErrorIfNotNil(err)
 		}
 	} else {
 		err = retry.Do(
@@ -98,7 +98,7 @@ func (s *StorageWrap) GetAll(ctx context.Context) ([]models.Metrics, error) {
 }
 
 func (s *StorageWrap) Load(ctx context.Context, metrics []models.Metrics) error {
-	err := retry.Do(
+	return retry.Do(
 		func() error {
 			err := s.r.Load(ctx, metrics)
 			return err
@@ -107,7 +107,6 @@ func (s *StorageWrap) Load(ctx context.Context, metrics []models.Metrics) error 
 		retry.DelayType(config.DelayType),
 		retry.OnRetry(config.OnRetry),
 	)
-	return err
 }
 
 func (s *StorageWrap) Ping(ctx context.Context) error {

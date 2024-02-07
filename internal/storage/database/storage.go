@@ -3,12 +3,13 @@ package database
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 
+	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
-	"github.com/dkrasnykh/metrics-alerter/internal/utils"
 )
 
 type Storage struct {
@@ -28,7 +29,9 @@ func InitDB(db *sqlx.DB) error {
 	if err != nil {
 		return err
 	}
-	_, err = tx.ExecContext(context.Background(),
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_, err = tx.ExecContext(ctx,
 		`CREATE TABLE IF NOT EXISTS metrics
 				(
  				    id            serial       not null unique,
@@ -43,7 +46,7 @@ func InitDB(db *sqlx.DB) error {
 	)
 	if err != nil {
 		err = tx.Rollback()
-		utils.LogError(err)
+		logger.LogErrorIfNotNil(err)
 	}
 	return tx.Commit()
 }
@@ -100,11 +103,11 @@ func (s *Storage) GetAll(ctx context.Context) ([]models.Metrics, error) {
 		var delta sql.NullInt64
 		var value sql.NullFloat64
 		err = rows.Scan(&m.ID, &m.MType, &delta, &value)
-		utils.LogError(err)
+		logger.LogErrorIfNotNil(err)
 		metrics = append(metrics, metric(m, delta, value))
 	}
 	err = rows.Close()
-	utils.LogError(err)
+	logger.LogErrorIfNotNil(err)
 	return metrics, nil
 }
 
@@ -133,7 +136,7 @@ func (s *Storage) Load(ctx context.Context, metrics []models.Metrics) error {
 }
 
 func (s *Storage) Ping(ctx context.Context) error {
-	return s.db.Ping()
+	return s.db.PingContext(ctx)
 }
 
 func metric(m models.Metrics, delta sql.NullInt64, value sql.NullFloat64) models.Metrics {

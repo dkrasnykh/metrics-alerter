@@ -42,3 +42,9 @@ func Error(msg string) {
 func Fatal(msg string) {
 	logger.Fatal(msg)
 }
+
+func LogErrorIfNotNil(err error) {
+	if err != nil {
+		logger.Error(err.Error())
+	}
+}
