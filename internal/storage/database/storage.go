@@ -3,12 +3,12 @@ package database
 import (
 	"context"
 	"database/sql"
+	"go.uber.org/zap"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
 
@@ -46,7 +46,7 @@ func InitDB(db *sqlx.DB) error {
 	)
 	if err != nil {
 		err = tx.Rollback()
-		logger.LogErrorIfNotNil(err)
+		zap.L().Error(err.Error())
 	}
 	return tx.Commit()
 }
@@ -103,11 +103,15 @@ func (s *Storage) GetAll(ctx context.Context) ([]models.Metrics, error) {
 		var delta sql.NullInt64
 		var value sql.NullFloat64
 		err = rows.Scan(&m.ID, &m.MType, &delta, &value)
-		logger.LogErrorIfNotNil(err)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
 		metrics = append(metrics, metric(m, delta, value))
 	}
 	err = rows.Close()
-	logger.LogErrorIfNotNil(err)
+	if err != nil {
+		zap.L().Error(err.Error())
+	}
 	return metrics, nil
 }
 

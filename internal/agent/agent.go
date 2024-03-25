@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"math/rand"
 	"net/http"
 	"runtime"
@@ -18,10 +19,9 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
-
+	
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/hash"
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
 
@@ -88,16 +88,20 @@ func (a *Agent) collectMemStats() {
 
 		runtime.ReadMemStats(a.memStats.v)
 		vm, err := mem.VirtualMemory()
-		logger.LogErrorIfNotNil(err)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
 		a.memStats.FreeMemory = float64(vm.Free)
 		a.memStats.TotalMemory = float64(vm.Total)
 		cp, err := cpu.Percent(time.Millisecond, false)
-		logger.LogErrorIfNotNil(err)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
 		a.memStats.CPUutilization1 = cp[0]
 
 		a.memStats.mx.Unlock()
 
-		logger.Info(fmt.Sprintf("metrics collection, timestamp: %s\n", t.String()))
+		zap.L().Info(fmt.Sprintf("metrics collection, timestamp: %s\n", t.String()))
 	}
 }
 
@@ -117,7 +121,7 @@ func (a *Agent) worker(ctx context.Context, jobs <-chan []models.Metrics, result
 
 func (a *Agent) reportMemStats(jobs chan []models.Metrics) {
 	for t := range a.reportTicker.C {
-		logger.Info(fmt.Sprintf("metrics reporting, timestamp: %s", t.String()))
+		zap.L().Info(fmt.Sprintf("metrics reporting, timestamp: %s", t.String()))
 		f := rand.Float64()
 
 		a.memStats.mx.RLock()
@@ -163,7 +167,9 @@ func (a *Agent) reportMemStats(jobs chan []models.Metrics) {
 
 func (a *Agent) parse(v uint64) *float64 {
 	f, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64)
-	logger.LogErrorIfNotNil(err)
+	if err != nil {
+		zap.L().Error(err.Error())
+	}
 	return &f
 }
 
@@ -188,21 +194,29 @@ func (a *Agent) sendBatchRequest(metrics []models.Metrics) {
 		retry.DelayType(config.DelayType),
 		retry.OnRetry(config.OnRetry),
 	)
-	logger.LogErrorIfNotNil(err)
+	if err != nil {
+		zap.L().Error(err.Error())
+	}
 	if resp.StatusCode() != http.StatusOK {
-		logger.Error(fmt.Sprintf(`unexpected status code %d`, resp.StatusCode()))
+		zap.L().Error(fmt.Sprintf(`unexpected status code %d`, resp.StatusCode()))
 	}
 }
 
 func gzipData(any interface{}) []byte {
 	body, err := json.Marshal(any)
-	logger.LogErrorIfNotNil(err)
+	if err != nil {
+		zap.L().Error(err.Error())
+	}
 	var b bytes.Buffer
 	gz := gzip.NewWriter(&b)
 	_, err = gz.Write(body)
-	logger.LogErrorIfNotNil(err)
+	if err != nil {
+		zap.L().Error(err.Error())
+	}
 	err = gz.Close()
-	logger.LogErrorIfNotNil(err)
+	if err != nil {
+		zap.L().Error(err.Error())
+	}
 	buf := b.Bytes()
 	return buf
 }

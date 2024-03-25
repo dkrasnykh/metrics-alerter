@@ -12,14 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/service"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 )
 
 func TestHandleUpdateByParam(t *testing.T) {
-	_ = logger.InitLogger()
 	r := memory.New("", 0)
 	v := service.New(r)
 	h := New(v, ``)
@@ -90,7 +88,6 @@ func TestHandleUpdateByParam(t *testing.T) {
 }
 
 func TestHandleGetByParam(t *testing.T) {
-	_ = logger.InitLogger()
 	r := memory.New("", 0)
 	v := service.New(r)
 	h := New(v, ``)

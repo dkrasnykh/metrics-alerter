@@ -2,11 +2,10 @@ package config
 
 import (
 	"fmt"
+	"go.uber.org/zap"
 	"time"
 
 	"github.com/avast/retry-go"
-
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 )
 
 const Attempts uint = 3
@@ -23,5 +22,5 @@ func DelayType(n uint, _ error, config *retry.Config) time.Duration {
 }
 
 func OnRetry(n uint, err error) {
-	logger.Error(fmt.Sprintf(`%d %s`, n, err.Error()))
+	zap.L().Error(fmt.Sprintf(`%d %s`, n, err.Error()))
 }

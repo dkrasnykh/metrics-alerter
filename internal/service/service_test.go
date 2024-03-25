@@ -9,13 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage"
 )
 
 func TestValidate(t *testing.T) {
-	_ = logger.InitLogger()
 	r, _ := storage.New(&config.ServerConfig{})
 	s := New(r)
 
@@ -45,7 +43,6 @@ func TestValidate(t *testing.T) {
 
 func TestSave(t *testing.T) {
 	ctx := context.Background()
-	_ = logger.InitLogger()
 	r, _ := storage.New(&config.ServerConfig{})
 	s := New(r)
 	value := float64(100)
@@ -56,7 +53,6 @@ func TestSave(t *testing.T) {
 }
 
 func TestCalculateCounterValue(t *testing.T) {
-	_ = logger.InitLogger()
 	ctx := context.Background()
 	r, _ := storage.New(&config.ServerConfig{})
 	s := New(r)
@@ -72,7 +68,6 @@ func TestCalculateCounterValue(t *testing.T) {
 }
 
 func TestGetCounterMetricValue(t *testing.T) {
-	_ = logger.InitLogger()
 	ctx := context.Background()
 	r, _ := storage.New(&config.ServerConfig{})
 	s := New(r)
@@ -89,7 +84,6 @@ func TestGetCounterMetricValue(t *testing.T) {
 }
 
 func TestGetAll(t *testing.T) {
-	_ = logger.InitLogger()
 	ctx := context.Background()
 	r, _ := storage.New(&config.ServerConfig{})
 	s := New(r)

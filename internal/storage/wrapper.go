@@ -2,11 +2,11 @@ package storage
 
 import (
 	"context"
+	"go.uber.org/zap"
 
 	"github.com/avast/retry-go"
 
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/repository"
 	"github.com/dkrasnykh/metrics-alerter/internal/storage/database"
@@ -32,7 +32,9 @@ func New(c *config.ServerConfig) (repository.Storager, error) {
 				retry.DelayType(config.DelayType),
 				retry.OnRetry(config.OnRetry),
 			)
-			logger.LogErrorIfNotNil(err)
+			if err != nil {
+				zap.L().Error(err.Error())
+			}
 		}
 	} else {
 		err = retry.Do(
