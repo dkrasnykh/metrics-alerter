@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
 
@@ -19,7 +18,6 @@ var (
 )
 
 func TestCreate(t *testing.T) {
-	_ = logger.InitLogger()
 	ctx := context.Background()
 	s := New("", 0)
 	m, err := s.Create(ctx, mCounter)
@@ -28,7 +26,6 @@ func TestCreate(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	_ = logger.InitLogger()
 	ctx := context.Background()
 	s := New("", 0)
 	_, err := s.Create(ctx, mCounter)
@@ -43,7 +40,6 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetAll(t *testing.T) {
-	_ = logger.InitLogger()
 	ctx := context.Background()
 	s := New("", 0)
 	_, err := s.Create(ctx, mCounter)
@@ -57,7 +53,6 @@ func TestGetAll(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	_ = logger.InitLogger()
 	ctx := context.Background()
 	s := New("", 0)
 	_, err := s.Create(ctx, mCounter)

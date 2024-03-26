@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"os"
 
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 	"github.com/dkrasnykh/metrics-alerter/internal/repository"
 )
@@ -44,7 +44,9 @@ func Save(path string, ms []models.Metrics) error {
 	}
 	defer func(file *os.File) {
 		err := file.Close()
-		logger.LogErrorIfNotNil(err)
+		if err != nil {
+			zap.L().Error(err.Error())
+		}
 	}(file)
 	v := data{ms}
 	bytes, err := json.Marshal(&v)
@@ -60,7 +62,9 @@ func Save(path string, ms []models.Metrics) error {
 
 func InitDir(path string) string {
 	err := os.MkdirAll(path+"/", 0777)
-	logger.LogErrorIfNotNil(err)
+	if err != nil {
+		zap.L().Error(err.Error())
+	}
 	return path + "/metrics.tmp"
 }
 

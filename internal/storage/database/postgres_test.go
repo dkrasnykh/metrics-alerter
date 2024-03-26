@@ -9,14 +9,12 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
 
 var ErrTest = errors.New("database access error")
 
 func TestCreate(t *testing.T) {
-	_ = logger.InitLogger()
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
@@ -83,7 +81,6 @@ func TestCreate(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	_ = logger.InitLogger()
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
@@ -174,7 +171,6 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetAll(t *testing.T) {
-	_ = logger.InitLogger()
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
@@ -236,7 +232,6 @@ func TestGetAll(t *testing.T) {
 }
 
 func TestLoad(t *testing.T) {
-	_ = logger.InitLogger()
 	mockDB, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)

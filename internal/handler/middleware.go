@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"compress/gzip"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"github.com/go-http-utils/headers"
 
 	"github.com/dkrasnykh/metrics-alerter/internal/hash"
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 )
 
 type CompressWriter struct {
@@ -30,7 +30,10 @@ func (h *Handler) Logging(next http.Handler) http.Handler {
 		timestamp := time.Now()
 		next.ServeHTTP(w, r)
 		duration := time.Since(timestamp)
-		logger.InfoRequest(r.Method, r.RequestURI, duration)
+		zap.L().Info("request",
+			zap.String("method", r.Method),
+			zap.String("URI", r.RequestURI),
+			zap.Duration("duration", duration))
 	})
 }
 
@@ -44,14 +47,14 @@ func (h *Handler) GzipRequest(next http.Handler) http.Handler {
 		defer func(oldBody io.ReadCloser) {
 			err := oldBody.Close()
 			if err != nil {
-				logger.Error(err.Error())
+				zap.L().Error(err.Error())
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
 		}(oldBody)
 		zr, err := gzip.NewReader(oldBody)
 		if err != nil {
-			logger.Error(err.Error())
+			zap.L().Error(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -68,14 +71,14 @@ func (h *Handler) GzipResponse(next http.Handler) http.Handler {
 		}
 		gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
 		if err != nil {
-			logger.Error(err.Error())
+			zap.L().Error(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		defer func(gz *gzip.Writer) {
 			err := gz.Close()
 			if err != nil {
-				logger.Error(err.Error())
+				zap.L().Error(err.Error())
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -90,7 +93,9 @@ func (h *Handler) Hash(next http.Handler) http.Handler {
 		if r.Header.Get(hash.Header) != "" {
 			expected := r.Header.Get(hash.Header)
 			buf, err := io.ReadAll(r.Body)
-			logger.LogErrorIfNotNil(err)
+			if err != nil {
+				zap.L().Error(err.Error())
+			}
 			actual := hash.Encode(buf, []byte(h.key))
 			if expected != actual {
 				w.WriteHeader(http.StatusBadRequest)

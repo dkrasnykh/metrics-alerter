@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"sync"
 	"time"
 
-	"github.com/dkrasnykh/metrics-alerter/internal/logger"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
 )
 
@@ -95,7 +95,7 @@ func (s *Storage) StoreIntoFile() {
 		time.AfterFunc(timeDuration, func() {
 			checker := func(err error) {
 				if err != nil {
-					logger.Error(err.Error())
+					zap.L().Error(err.Error())
 				}
 			}
 			ms, err := s.GetAll(context.Background())
