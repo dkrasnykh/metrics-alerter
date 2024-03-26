@@ -31,11 +31,11 @@ func (s *Server) Run() error {
 		return err
 	}
 	v := service.New(r)
-	handler.T, err = template.New("webpage").Parse(handler.Tpl)
+	tpl, err := template.New("webpage").Parse(handler.Tpl)
 	if err != nil {
 		return err
 	}
-	h := handler.New(v, s.c.Key)
+	h := handler.New(v, s.c.Key, tpl)
 
 	err = http.ListenAndServe(s.c.Address, h.InitRoutes())
 	return err

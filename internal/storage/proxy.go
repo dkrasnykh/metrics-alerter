@@ -13,7 +13,7 @@ import (
 	"github.com/dkrasnykh/metrics-alerter/internal/storage/memory"
 )
 
-type StorageWrap struct {
+type Proxy struct {
 	r repository.Storager
 }
 
@@ -51,10 +51,10 @@ func New(c *config.ServerConfig) (repository.Storager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &StorageWrap{r: r}, nil
+	return &Proxy{r: r}, nil
 }
 
-func (s *StorageWrap) Create(ctx context.Context, metric models.Metrics) (models.Metrics, error) {
+func (s *Proxy) Create(ctx context.Context, metric models.Metrics) (models.Metrics, error) {
 	var m models.Metrics
 	err := retry.Do(
 		func() error {
@@ -69,7 +69,7 @@ func (s *StorageWrap) Create(ctx context.Context, metric models.Metrics) (models
 	return m, err
 }
 
-func (s *StorageWrap) Get(ctx context.Context, mType, name string) (models.Metrics, error) {
+func (s *Proxy) Get(ctx context.Context, mType, name string) (models.Metrics, error) {
 	var m models.Metrics
 	err := retry.Do(
 		func() error {
@@ -84,7 +84,7 @@ func (s *StorageWrap) Get(ctx context.Context, mType, name string) (models.Metri
 	return m, err
 }
 
-func (s *StorageWrap) GetAll(ctx context.Context) ([]models.Metrics, error) {
+func (s *Proxy) GetAll(ctx context.Context) ([]models.Metrics, error) {
 	var m []models.Metrics
 	err := retry.Do(
 		func() error {
@@ -99,7 +99,7 @@ func (s *StorageWrap) GetAll(ctx context.Context) ([]models.Metrics, error) {
 	return m, err
 }
 
-func (s *StorageWrap) Load(ctx context.Context, metrics []models.Metrics) error {
+func (s *Proxy) Load(ctx context.Context, metrics []models.Metrics) error {
 	return retry.Do(
 		func() error {
 			err := s.r.Load(ctx, metrics)
@@ -111,6 +111,6 @@ func (s *StorageWrap) Load(ctx context.Context, metrics []models.Metrics) error 
 	)
 }
 
-func (s *StorageWrap) Ping(ctx context.Context) error {
+func (s *Proxy) Ping(ctx context.Context) error {
 	return s.r.Ping(ctx)
 }

@@ -30,7 +30,10 @@ func (h *Handler) Logging(next http.Handler) http.Handler {
 		timestamp := time.Now()
 		next.ServeHTTP(w, r)
 		duration := time.Since(timestamp)
-		zap.L().Info("request", zap.String("method", r.Method), zap.String("URI", r.RequestURI), zap.Duration("duration", duration))
+		zap.L().Info("request",
+			zap.String("method", r.Method),
+			zap.String("URI", r.RequestURI),
+			zap.Duration("duration", duration))
 	})
 }
 

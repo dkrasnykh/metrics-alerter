@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"net/http"
 	"runtime"
-	"strconv"
 	"sync"
 	"time"
 
@@ -19,7 +18,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
-	
+
 	"github.com/dkrasnykh/metrics-alerter/internal/config"
 	"github.com/dkrasnykh/metrics-alerter/internal/hash"
 	"github.com/dkrasnykh/metrics-alerter/internal/models"
@@ -166,10 +165,7 @@ func (a *Agent) reportMemStats(jobs chan []models.Metrics) {
 }
 
 func (a *Agent) parse(v uint64) *float64 {
-	f, err := strconv.ParseFloat(fmt.Sprintf("%v", v), 64)
-	if err != nil {
-		zap.L().Error(err.Error())
-	}
+	f := float64(v)
 	return &f
 }
 
